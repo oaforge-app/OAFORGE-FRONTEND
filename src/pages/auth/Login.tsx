@@ -1,11 +1,3 @@
-// src/pages/Login.tsx
-// Matches your LoginPage.tsx pattern exactly:
-// - react-hook-form + zodResolver
-// - useSignIn hook (returns { loginMutation })
-// - Google OAuth via window.location.href
-// - useNavigate after success
-// - Same layout with left form + right hero
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, Link } from "react-router-dom";
@@ -17,6 +9,7 @@ import { Eye, EyeOff, KeyRound, Mail, Zap, BookOpen, Brain, Target } from "lucid
 
 import { useSignIn } from "@/api/auth.query";
 import { QUERY_KEY } from "@/lib/config";
+import { useTheme } from "../components/Navbar";
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
@@ -58,7 +51,6 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       await loginMutation.mutateAsync(data);
-      // Cookie is set by backend. Invalidate /auth/me so ProtectedRoute re-evaluates.
       await queryClient.invalidateQueries({ queryKey: QUERY_KEY.me });
       navigate("/dashboard");
     } catch {
@@ -71,14 +63,15 @@ export default function LoginPage() {
   };
 
   const features = [
-    { icon: Brain,    title: "AI-Generated Questions", desc: "Powered by Groq / LLaMA 3.3" },
-    { icon: Target,   title: "8+ Sections",            desc: "English, Quant, DSA, DBMS, CN..." },
-    { icon: BookOpen, title: "Track Progress",          desc: "Scores, accuracy, topic breakdown" },
-    { icon: Zap,      title: "AMCAT Focused",           desc: "Exactly what the exam tests" },
+    { icon: Brain,    title: "AI-Generated Questions", desc: "Custom MCQs from your JD via Groq"  },
+    { icon: Target,   title: "Role-Specific Plans",    desc: "Sections picked by AI for the job"  },
+    { icon: BookOpen, title: "Track Progress",         desc: "Scores, accuracy, weak area stats"  },
+    { icon: Zap,      title: "Any Company's OA",       desc: "Not just AMCAT — any OA format"     },
   ];
 
   return (
     <div className="min-h-screen flex">
+
       {/* ── Left: Form ── */}
       <div className="w-full lg:w-5/12 flex items-center justify-center p-8 relative bg-background">
         {/* Background texture */}
@@ -108,8 +101,8 @@ export default function LoginPage() {
         >
           {/* Logo */}
           <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl border border-primary/20 bg-primary/5 mb-3">
-              <span className="text-xl">⬡</span>
+            <div className="w-20 h-20 rounded-xl flex items-center justify-center mx-auto mb-2">
+              <img src="/logo.webp" alt="OAForge" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight">OAForge</h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -229,12 +222,13 @@ export default function LoginPage() {
           />
         </div>
 
+        {/* Floating code card */}
         <motion.div
           animate={{ y: [0, -15, 0], rotate: [-2, 2, -2] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
           className="absolute top-24 right-24 bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-4 shadow-2xl"
         >
-          <pre className="text-green-400 text-xs font-mono">{`// Groq generated ✓\nfunction binarySearch(arr, x) {\n  let lo=0, hi=arr.length-1;\n  while(lo<=hi) {...}\n}`}</pre>
+          <pre className="text-green-400 text-xs font-mono">{`// Plan generated for SDE @ Flipkart ✓\nsections: [\n  "Data Structures",\n  "System Design MCQ",\n  "SQL & DBMS",\n  "Verbal Reasoning"\n]`}</pre>
         </motion.div>
 
         <div className="relative z-10">
@@ -251,8 +245,9 @@ export default function LoginPage() {
               </span>
             </h2>
             <p className="text-xl text-slate-300 max-w-xl leading-relaxed mb-10">
-              AI-powered AMCAT prep — practice with dynamically generated MCQs
-              across every section that matters.
+              AI-powered OA prep for any company — generate custom assessments
+              tailored to the role and JD, so you walk in ready for exactly what
+              they'll ask.
             </p>
 
             <div className="grid grid-cols-2 gap-4">
@@ -279,7 +274,7 @@ export default function LoginPage() {
           transition={{ delay: 0.8 }}
           className="relative z-10 flex items-center justify-between"
         >
-          {[["8+", "Sections"], ["AI", "Powered"], ["Free", "Forever"]].map(
+          {[["Any", "Company"], ["AI", "Powered"], ["Free", "Forever"]].map(
             ([val, label]) => (
               <div key={label} className="text-center">
                 <div className="text-4xl font-bold text-white mb-1">{val}</div>

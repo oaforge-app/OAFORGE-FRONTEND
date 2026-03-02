@@ -2,10 +2,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { refreshTokenApiHandler } from "@/api/auth.query";
 
-/**
- * Factory function — call once per app mount, not a module-level singleton.
- * This matches your AppWrapper pattern: new QueryClient() inside the component.
- */
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {

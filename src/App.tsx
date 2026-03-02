@@ -1,27 +1,26 @@
 // src/App.tsx
-//
-// Additional loop-prevention here:
-// - queryClient is created ONCE with useMemo (not on every render)
-// - refreshTokenApiHandler is called once on mount in AppWrapper
-//   but its failure is completely silent — no redirect
-// - RouterProvider is the direct child of QueryClientProvider
 
 import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useMemo, useEffect } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import ProtectedRoute from "@/utility/ProtectedRoutes";
-import { refreshTokenApiHandler } from "@/api/auth.query";
-import { createQueryClient } from "@/lib/queryClient";
+import { logoutApiHandler, refreshTokenApiHandler } from "@/api/auth.query";
 
-import LoginPage        from "@/pages/Login";
-import RegisterPage     from "@/pages/Register";
-import AuthCallback     from "@/pages/AuthCallback";
-import Dashboard        from "@/pages/Dashboard";
-import TestScreenPage   from "@/pages/TestScreen";
-import ResultDetailPage from "@/pages/ResultDetail";
+import LoginPage           from "@/pages/auth/Login";
+import RegisterPage        from "@/pages/auth/Register";
+import AuthCallback        from "@/pages/AuthCallback";
+import Dashboard           from "@/pages/Dashboard";
+import CreateAssessmentPage from "@/pages/assessments/CreateAssessment";
+import AssessmentPlanPage  from "@/pages/assessments/AssessmentPlan";
+import TestScreenPage from "./pages/test/TestScreen";
+import ResultDetailPage    from "@/pages/results/ResultDetail";
+import SettingsPage from "./pages/auth/Settings";
+import { AuthGate } from "./utility/AuthGate";
+import ResultsPage from "./pages/results/Results";
+import { ThemeProvider } from "next-themes";
+import NotFoundPage from "./pages/NotFound";
 
 // ── Root layout ───────────────────────────────────────────────────────────────
 
@@ -32,22 +31,18 @@ const RootLayout = () => (
   </>
 );
 
-// ── Router (defined outside component — stable reference, never recreated) ────
+// ── Router ────────────────────────────────────────────────────────────────────
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <RootLayout />,
     children: [
-      // Root: unauthenticated → show login, authenticated → go to dashboard
-      {
-        index: true,
-        element: (
-          <ProtectedRoute allowAuthenticated={false} redirectTo="/dashboard">
-            <LoginPage />
-          </ProtectedRoute>
-        ),
+       {
+        path: "",
+        element: <AuthGate/>,
       },
+     
 
       // ── Public routes (logged-OUT only) ──────────────────────────────────
       {
@@ -67,7 +62,6 @@ const router = createBrowserRouter([
         ),
       },
       {
-        // Google OAuth lands here — always accessible regardless of auth state
         path: "auth/callback",
         element: <AuthCallback />,
       },
@@ -80,26 +74,24 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
         children: [
-          { path: "dashboard",         element: <Dashboard /> },
-          { path: "test/:sessionId",   element: <TestScreenPage /> },
-          { path: "results/:resultId", element: <ResultDetailPage /> },
+          { path: "dashboard",                       element: <Dashboard />            },
+          { path: "settings",                        element: <SettingsPage />         },
+
+          // Assessment flow
+          { path: "assessment/new",                  element: <CreateAssessmentPage /> },
+          { path: "assessment/:id/plan",             element: <AssessmentPlanPage />   },
+          { path: "assessment/:id/test",             element: <TestScreenPage />        },
+
+           // Results
+          { path: "results",                         element: <ResultsPage />          },
+          { path: "results/:resultId",               element: <ResultDetailPage />     },
         ],
       },
 
       // ── 404 ──────────────────────────────────────────────────────────────
       {
         path: "*",
-        element: (
-          <div className="flex items-center justify-center min-h-screen bg-background">
-            <div className="text-center space-y-3">
-              <h1 className="text-5xl font-bold">404</h1>
-              <p className="text-muted-foreground">Page not found</p>
-              <a href="/login" className="text-sm text-primary hover:underline block">
-                ← Go to Login
-              </a>
-            </div>
-          </div>
-        ),
+        element: <NotFoundPage/>
       },
     ],
   },
@@ -108,25 +100,43 @@ const router = createBrowserRouter([
 // ── AppWrapper ────────────────────────────────────────────────────────────────
 
 const AppWrapper = () => {
-  // useMemo so the QueryClient is created ONCE, not on every render
-  const queryClient = useMemo(() => createQueryClient(), []);
-
-  useEffect(() => {
-    // Attempt a silent token refresh on first app load.
-    // If it fails, do NOTHING — no redirect, no error.
-    // ProtectedRoute will handle redirecting to /login if the user is unauthenticated.
-    refreshTokenApiHandler().catch(() => {
-      // Silently ignore — user just doesn't have a refresh token yet
-    });
-  }, []);
+    const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry(failureCount, error) {
+          if ((error as any).status === 401) {
+            try {
+              refreshTokenApiHandler();
+            } catch {
+              logoutApiHandler();
+            }
+          }
+          return true;
+        },
+      },
+      mutations: {
+        onError: async (error: any) => {
+          if (error?.status === 401) {
+            try {
+              refreshTokenApiHandler();
+            } catch {
+              logoutApiHandler();
+            }
+          }
+        },
+      },
+    },
+  });
 
   return (
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
       {import.meta.env.DEV && (
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
       )}
     </QueryClientProvider>
+    </ThemeProvider>
   );
 };
 

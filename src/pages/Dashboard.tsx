@@ -1,488 +1,657 @@
 // src/pages/Dashboard.tsx
-import { useState } from "react";
+// Full-width bento-grid layout — Linear / Modern design system
+// Fully responsive: mobile → tablet → desktop
+// Perfect dark AND light mode via explicit Tailwind dark: classes
+
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, LogOut, Trash2, Play, CheckCircle } from "lucide-react";
-
-import { useUser, useLogout } from "@/api/auth.query";
 import {
-  useMySections,
-  useAvailableSections,
-  useAddSection,
-  useRemoveSection,
-  useCreateCustomSection,
-  type CreateCustomSectionPayload,
-} from "@/api/sections.query";
-import { useCreateSession } from "@/api/test.query";
-import { useMyResults } from "@/api/results.query";
-import { Spinner } from "@/components/ui/spinner";
-import type { UserSection, SectionTemplate } from "@/types";
+  Plus, Play, ChevronRight, Sparkles, Clock, TrendingUp,
+  Key, BarChart3, Zap, Target, Activity, Trophy, BookOpen,
+  ArrowUpRight, CheckCircle2, XCircle, AlertTriangle,
+  Flame, TrendingDown, ArrowRight,
+} from "lucide-react";
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  RadarChart, PolarGrid, PolarAngleAxis, Radar,
+} from "recharts";
+
+import { useUser }                        from "@/api/auth.query";
+import { useMyAssessments }               from "@/api/assessment.query";
+import { useMyResults }                   from "@/api/results.query";
+import { Spinner }                        from "@/components/ui/spinner";
+import type { Assessment, ResultSummary } from "@/types";
+import Navbar from "./components/Navbar";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Design tokens / helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+const accColor = (n: number) =>
+  n >= 70 ? "#22c55e" : n >= 50 ? "#f59e0b" : "#ef4444";
+
+// Explicit, non-transparent card surface for both modes
+const CARD =
+  "relative overflow-hidden rounded-2xl " +
+  "bg-white border border-black/[0.07] shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.06)] " +
+  "dark:bg-[#0d0d10] dark:border-white/[0.07] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.055),0_4px_32px_rgba(0,0,0,0.5)]";
+
+const STATUS_CFG = {
+  PENDING:   { label: "Draft",   dot: "bg-yellow-400", pill: "border-yellow-500/30 bg-yellow-500/[0.08] text-yellow-600 dark:text-yellow-400" },
+  ACTIVE:    { label: "Ready",   dot: "bg-blue-400",   pill: "border-blue-500/30 bg-blue-500/[0.08] text-blue-600 dark:text-blue-400"         },
+  COMPLETED: { label: "Done",    dot: "bg-emerald-400",pill: "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-400" },
+  EXPIRED:   { label: "Expired", dot: "bg-red-400",    pill: "border-red-500/30 bg-red-500/[0.08] text-red-600 dark:text-red-400"              },
+};
+
+// 1-px shimmer top edge — dark mode only
+const EdgeGlow = () => (
+  <div className="hidden dark:block absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/[0.13] to-transparent pointer-events-none z-10" />
+);
+
+// Chart tooltip
+function ChartTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="rounded-xl px-3 py-2 text-xs bg-white dark:bg-[#111116] border border-black/[0.09] dark:border-white/[0.10] shadow-lg dark:shadow-[0_4px_24px_rgba(0,0,0,0.7)]">
+      <p className="text-gray-500 dark:text-[#8A8F98] mb-0.5 truncate max-w-[160px]">{d.title}</p>
+      <p className="font-bold text-sm" style={{ color: accColor(d.accuracy) }}>{d.accuracy}%</p>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dashboard
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [modal, setModal] = useState<"add" | "custom" | null>(null);
-  const [startingId, setStartingId] = useState<string | null>(null);
+  const [banner, setBanner] = useState(true);
 
-  const { user }                                                      = useUser();
-  const { logout }                                                    = useLogout();
-  const { data: mySections, isLoading: sectionsLoading }             = useMySections();
-  const { data: available, isLoading: availableLoading }             = useAvailableSections();
-  const { data: results }                                            = useMyResults();
+  const { user }                                         = useUser();
+  const { data: assessments, isLoading: assessLoading } = useMyAssessments();
+  const { data: rd }                                     = useMyResults();
 
-  const addSection    = useAddSection();
-  const removeSection = useRemoveSection();
-  const createCustom  = useCreateCustomSection();
-  const createSession = useCreateSession();
+  const results      = rd?.results      ?? [];
+  const graphData    = rd?.graphData    ?? [];
+  const sectionStats = rd?.sectionStats ?? [];
+  const overallAcc   = rd?.overallAccuracy ?? 0;
+  const totalTests   = rd?.totalTests   ?? 0;
+  const needsKey     = user && !user.hasGroqApiKey;
 
-  const handleStartTest = (us: UserSection) => {
-    setStartingId(us.id);
-    createSession.mutate(
-      {
-        // ✅ use sectionTemplate.id — the Prisma relation is sectionTemplate, not section
-        sectionTemplateId: us.sectionTemplate.id,
-        questionCount: us.questionCount,
-        duration: us.duration,
-      },
-      {
-        onSuccess: (session) => {
-          navigate(`/test/${session.id}`);
-        },
-        onSettled: () => setStartingId(null),
-      }
+  const streak = useMemo(() => {
+    if (!results.length) return 0;
+    const sorted = [...results].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
+    let count = 0, prev = new Date(); prev.setHours(0,0,0,0);
+    for (const r of sorted) {
+      const d = new Date(r.createdAt); d.setHours(0,0,0,0);
+      if ((prev.getTime() - d.getTime()) / 86400000 <= 1) { count++; prev = d; } else break;
+    }
+    return count;
+  }, [results]);
+
+  const bestScore = useMemo(() => results.reduce((m, r) => Math.max(m, r.accuracy), 0), [results]);
+
+  const trend = useMemo(() => {
+    if (graphData.length < 2) return null;
+    return graphData[graphData.length - 1].accuracy - graphData[graphData.length - 2].accuracy;
+  }, [graphData]);
+
+  const radarData = useMemo(() =>
+    [...sectionStats].sort((a, b) => b.attempts - a.attempts).slice(0, 6).map((s) => ({
+      subject: s.name.split(" ").slice(0, 2).join(" "),
+      value: s.avgAccuracy,
+      fullMark: 100,
+    })),
+    [sectionStats]
+  );
+
+  const handleAssessmentClick = (a: Assessment) => {
+    if (a.status === "PENDING") return navigate(`/assessment/${a.id}/plan`);
+    if (a.status === "ACTIVE")  return navigate(`/assessment/${a.id}/test`);
+    if (a.status === "COMPLETED" || a.status === "EXPIRED") {
+      const r = results.find((x) => x.assessmentId === a.id);
+      if (r) navigate(`/results/${r.id}`);
+    }
   };
 
-  const completedCount  = results?.length ?? 0;
-  const overallAccuracy = results?.length
-    ? Math.round(results.reduce((s, r) => s + r.accuracy, 0) / results.length)
-    : 0;
+  const kpis = [
+    { label: "Tests Taken",    value: String(totalTests), icon: BookOpen, color: "#5E6AD2",
+      sub: `${assessments?.filter(a => a.status === "COMPLETED").length ?? 0} completed` },
+    { label: "Overall Accuracy", value: `${overallAcc}%`, icon: Target, color: accColor(overallAcc),
+      sub: trend !== null ? `${trend >= 0 ? "+" : ""}${trend.toFixed(0)}% vs last` : "no trend yet",
+      trend },
+    { label: "Best Score",     value: `${bestScore}%`,   icon: Trophy,   color: "#f59e0b", sub: "personal best" },
+    { label: "Day Streak",     value: String(streak),    icon: Flame,    color: streak >= 3 ? "#f97316" : "#6b7280",
+      sub: streak >= 3 ? "🔥 On fire!" : "practice daily" },
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border px-6 py-4 flex items-center justify-between bg-card">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <span className="text-sm">⬡</span>
-          </div>
-          <span className="font-semibold text-lg">OAForge</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground">
-            {user?.firstName ?? user?.email}
-          </span>
-          <button
-            onClick={logout}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#f4f4f7] dark:bg-[#050506] transition-colors duration-300">
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
-        {/* Stats */}
-        {results && results.length > 0 && (
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            {[
-              { label: "Completed",    value: String(completedCount),          color: "text-green-500"  },
-              { label: "Avg Accuracy", value: `${overallAccuracy}%`,           color: "text-primary"    },
-              { label: "My Sections",  value: String(mySections?.length ?? 0), color: "text-yellow-500" },
-            ].map((s) => (
-              <div key={s.label} className="bg-card border border-border rounded-xl p-4">
-                <div className={`text-3xl font-bold ${s.color}`}>{s.value}</div>
-                <div className="text-sm text-muted-foreground mt-1">{s.label}</div>
+      {/* ── Atmospheric background (fixed, behind everything) ────────────── */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        {/* Light mode tint */}
+        <div className="dark:hidden absolute inset-0 bg-[radial-gradient(ellipse_100%_40%_at_50%_0%,rgba(99,102,241,0.09),transparent_70%)]" />
+        {/* Dark base */}
+        <div className="hidden dark:block absolute inset-0 bg-[#050506]" />
+        <div className="hidden dark:block absolute inset-0 bg-[radial-gradient(ellipse_at_top,#0d0d18_0%,transparent_55%)]" />
+
+        {/* Noise grain */}
+        <div className="absolute inset-0 opacity-[0.018]"
+          style={{ backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`, backgroundSize:"128px 128px" }} />
+
+        {/* 64px grid */}
+        <div className="absolute inset-0 opacity-[0.022] dark:opacity-[0.032]"
+          style={{ backgroundImage:"linear-gradient(rgba(94,106,210,0.3) 1px,transparent 1px),linear-gradient(90deg,rgba(94,106,210,0.3) 1px,transparent 1px)", backgroundSize:"64px 64px" }} />
+
+        {/* Dark animated blobs */}
+        <motion.div animate={{ y:[0,-26,0],rotate:[-3,3,-3] }} transition={{ duration:14,repeat:Infinity,ease:"easeInOut" }}
+          className="hidden dark:block absolute -top-64 left-1/2 -translate-x-1/2 w-[1400px] h-[800px] rounded-full bg-[#5E6AD2]/[0.14] blur-[180px]" />
+        <motion.div animate={{ y:[0,20,0],x:[0,-14,0] }} transition={{ duration:13,repeat:Infinity,ease:"easeInOut",delay:2 }}
+          className="hidden dark:block absolute bottom-0 right-0 w-[800px] h-[700px] rounded-full bg-purple-700/[0.09] blur-[160px]" />
+        <motion.div animate={{ y:[0,-14,0] }} transition={{ duration:11,repeat:Infinity,ease:"easeInOut",delay:5 }}
+          className="hidden dark:block absolute top-1/2 -left-64 w-[600px] h-[500px] rounded-full bg-indigo-600/[0.06] blur-[130px]" />
+
+        {/* Light blobs */}
+        <div className="dark:hidden absolute -top-32 left-1/2 -translate-x-1/2 w-250 h-[500px] rounded-full bg-indigo-200/[0.28] blur-[140px]" />
+        <div className="dark:hidden absolute bottom-0 right-0 w-[600px] h-[500px] rounded-full bg-violet-200/[0.20] blur-[120px]" />
+      </div>
+
+      {/* ── Navbar ─────────────────────────────────────────────────────────── */}
+      <Navbar />
+
+      {/* ── Page body ──────────────────────────────────────────────────────── */}
+      <main className="relative z-10  w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6 lg:py-8 space-y-6 lg:space-y-8">
+
+        {/* ── API key banner ── */}
+        <AnimatePresence>
+          {needsKey && banner && (
+            <motion.div initial={{ opacity:0,y:-10,height:0 }} animate={{ opacity:1,y:0,height:"auto" }}
+              exit={{ opacity:0,y:-10,height:0 }} transition={{ duration:0.3,ease:[0.16,1,0.3,1] }} className="overflow-hidden">
+              <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-500/[0.07] dark:border-amber-500/[0.22]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-500/[0.15] border border-amber-200 dark:border-amber-500/[0.25] flex items-center justify-center shrink-0">
+                    <Key className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    Add a <strong>Groq API key</strong> in Settings to generate AI-powered tests.
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
+                    onClick={() => navigate("/settings")}
+                    className="text-xs px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors shadow-[0_2px_8px_rgba(245,158,11,0.35)]">
+                    Add Key
+                  </motion.button>
+                  <button onClick={() => setBanner(false)} className="text-sm px-2 py-1.5 text-gray-400 dark:text-[#8A8F98] hover:text-gray-700 dark:hover:text-[#EDEDEF] transition-colors">✕</button>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Heading */}
-        <div className="flex items-center justify-between mb-6">
+        {/* ── Hero row: Welcome + CTA ── */}
+        <motion.div initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }} transition={{ duration:0.45,ease:[0.16,1,0.3,1] }}
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Your Sections</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Click Start to take an AI-generated test
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-[#EDEDEF]">
+              {user?.firstName ? `Hey, ${user.firstName} 👋` : "Dashboard"}
+            </h1>
+            <p className="text-sm text-gray-400 dark:text-[#8A8F98] mt-1">
+              {totalTests > 0
+                ? `${totalTests} test${totalTests !== 1 ? "s" : ""} completed · overall accuracy ${overallAcc}%`
+                : "Create your first AI-powered assessment to get started."}
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setModal("custom")}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-accent transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Custom
-            </button>
-            <button
-              onClick={() => setModal("add")}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Section
-            </button>
-          </div>
-        </div>
+          <motion.button whileHover={{ scale:1.02,y:-1 }} whileTap={{ scale:0.98 }}
+            transition={{ duration:0.2,ease:[0.16,1,0.3,1] }}
+            onClick={() => navigate("/assessment/new")}
+            className="cursor-pointer inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl bg-[#5E6AD2] text-white hover:bg-[#6872D9] shrink-0 transition-all duration-200 shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_14px_rgba(94,106,210,0.35),inset_0_1px_0_rgba(255,255,255,0.15)] hover:shadow-[0_0_0_1px_rgba(104,114,217,0.6),0_6px_20px_rgba(94,106,210,0.45)]">
+            <Plus className="w-4 h-4" />
+            New Assessment
+          </motion.button>
+        </motion.div>
 
-        {/* Section cards */}
-        {sectionsLoading ? (
-          <div className="flex justify-center py-20"><Spinner /></div>
-        ) : mySections && mySections.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mySections.filter((us) => !!us.sectionTemplate).map((us, i) => (
-              <SectionCard
-                key={us.id}
-                userSection={us}
-                index={i}
-                onStart={() => handleStartTest(us)}
-                onRemove={() => removeSection.mutate(us.id)}
-                isStarting={startingId === us.id}
-                isRemoving={removeSection.isPending}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState onAdd={() => setModal("add")} />
-        )}
-
-        {/* Past results */}
-        {results && results.length > 0 && (
-          <div className="mt-10">
-            <h2 className="text-lg font-semibold mb-4">Past Results</h2>
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
-              {results.map((r, i) => {
-                const color =
-                  r.accuracy >= 70 ? "text-green-500" :
-                  r.accuracy >= 50 ? "text-yellow-500" :
-                  "text-red-500";
-                return (
-                  <div
-                    key={r.id}
-                    className={`flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-accent/30 transition-colors ${i > 0 ? "border-t border-border" : ""}`}
-                    onClick={() => navigate(`/results/${r.id}`)}
-                  >
-                    <div>
-                      <p className="font-medium text-sm">{r.sectionName}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {r.correctAnswers}/{r.totalQuestions} correct · {Math.floor(r.timeSpent / 60)}m spent
-                      </p>
+        {/* ═══════════════════════════════════════════════════════════════════
+            ANALYTICS SECTION — only when data exists
+        ═══════════════════════════════════════════════════════════════════ */}
+        {totalTests > 0 && (
+          <>
+            {/* ── Row 1: 4 KPI cards ── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+              {kpis.map((k, i) => (
+                <motion.div key={k.label}
+                  initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }}
+                  transition={{ delay:i*0.07,duration:0.4,ease:[0.16,1,0.3,1] }}
+                  whileHover={{ y:-3,scale:1.01 }}
+                  className={CARD + " p-5 cursor-default transition-all duration-200 hover:shadow-[0_6px_24px_rgba(0,0,0,0.10)] dark:hover:shadow-[0_0_0_1px_rgba(255,255,255,0.09),0_10px_40px_rgba(0,0,0,0.8)]"}>
+                  {/* Per-card radial glow */}
+                  <div className="absolute inset-0 opacity-[0.08] dark:opacity-[0.12] pointer-events-none"
+                    style={{ background:`radial-gradient(circle at 80% 15%,${k.color},transparent 60%)` }} />
+                  <EdgeGlow />
+                  <div className="relative z-10">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                        style={{ background:`${k.color}1a`,border:`1px solid ${k.color}35` }}>
+                        <k.icon className="w-4 h-4" style={{ color:k.color }} />
+                      </div>
+                      {k.trend != null && (
+                        <span className={`flex items-center gap-0.5 text-xs font-semibold ${k.trend >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                          {k.trend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                          {k.trend >= 0 ? "+" : ""}{k.trend.toFixed(0)}%
+                        </span>
+                      )}
                     </div>
-                    <span className={`text-xl font-bold ${color}`}>{r.accuracy}%</span>
+                    <p className="text-2xl xl:text-3xl font-bold tracking-tight" style={{ color:k.color }}>{k.value}</p>
+                    <p className="text-sm font-semibold text-gray-700 dark:text-[#EDEDEF] mt-1">{k.label}</p>
+                    <p className="text-xs text-gray-400 dark:text-[#8A8F98] mt-0.5 truncate">{k.sub}</p>
                   </div>
-                );
-              })}
+                </motion.div>
+              ))}
             </div>
-          </div>
-        )}
-      </main>
 
-      {/* Modals */}
-      <AnimatePresence>
-        {modal === "add" && (
-          <AddSectionModal
-            available={available ?? []}
-            // ✅ pass isLoading separately — don't use available.length === 0 as loading check
-            isLoading={availableLoading}
-            existing={mySections?.map((us) => us.sectionTemplate.id) ?? []}
-            onAdd={(id) => { addSection.mutate({ sectionTemplateId: id }); setModal(null); }}
-            onClose={() => setModal(null)}
-            isAdding={addSection.isPending}
-          />
-        )}
-        {modal === "custom" && (
-          <CreateCustomModal
-            onCreate={(data) => { createCustom.mutate(data); setModal(null); }}
-            onClose={() => setModal(null)}
-            isCreating={createCustom.isPending}
-          />
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
+            {/* ── Row 2: BENTO — Score chart (wide) + Radar + Section mini ── */}
+            {/* 
+              Desktop:  [Score History 5cols] [Radar 3cols] [Section mini 4cols]
+              Tablet:   [Score History full] / [Radar + Section half each]
+              Mobile:   stacked
+            */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 lg:gap-4">
 
-// ── Section Card ──────────────────────────────────────────────────────────────
-
-function SectionCard({
-  userSection: us, index, onStart, onRemove, isStarting, isRemoving,
-}: {
-  userSection: UserSection;
-  index: number;
-  onStart: () => void;
-  onRemove: () => void;
-  isStarting: boolean;
-  isRemoving: boolean;
-}) {
-  // ✅ use sectionTemplate, not section (matches Prisma schema relation name)
-  const s = us.sectionTemplate;
-  if (!s) return null;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.3 }}
-      className="bg-card border border-border rounded-xl p-5 flex flex-col hover:border-primary/40 transition-colors"
-    >
-      <div className="flex items-start gap-3 mb-3">
-        <span className="text-2xl">{s?.icon?s.icon: "📋"}</span>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate">{s?.name?s.name:"a"}</p>
-          {s.description && (
-            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{s.description}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex gap-3 text-xs text-muted-foreground mb-3">
-        <span className="text-primary font-medium">{us.questionCount}Q</span>
-        <span>{us.duration}min</span>
-      </div>
-
-      {Array.isArray(s.topics) && (s.topics as string[]).length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-4">
-          {(s.topics as string[]).slice(0, 3).map((t) => (
-            <span
-              key={t}
-              className="text-[10px] px-2 py-0.5 bg-primary/8 border border-primary/15 text-primary/80 rounded"
-            >
-              {t}
-            </span>
-          ))}
-          {(s.topics as string[]).length > 3 && (
-            <span className="text-[10px] text-muted-foreground">
-              +{(s.topics as string[]).length - 3}
-            </span>
-          )}
-        </div>
-      )}
-
-      <div className="flex gap-2 mt-auto">
-        <button
-          onClick={onStart}
-          disabled={isStarting}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
-        >
-          {isStarting ? (
-            <Spinner className="w-3 h-3" />
-          ) : (
-            <><Play className="w-3 h-3" /> Start</>
-          )}
-        </button>
-        <button
-          onClick={onRemove}
-          disabled={isRemoving}
-          className="p-2 border border-border rounded-lg hover:border-destructive hover:text-destructive transition-colors text-muted-foreground"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </motion.div>
-  );
-}
-
-// ── Empty State ───────────────────────────────────────────────────────────────
-
-function EmptyState({ onAdd }: { onAdd: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-xl text-center">
-      <div className="text-5xl mb-4">⚡</div>
-      <h3 className="text-lg font-semibold mb-1">No sections yet</h3>
-      <p className="text-sm text-muted-foreground mb-6">
-        Add sections to start your OA preparation
-      </p>
-      <button
-        onClick={onAdd}
-        className="flex items-center gap-2 px-5 py-2.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-      >
-        <Plus className="w-4 h-4" />
-        Add Your First Section
-      </button>
-    </div>
-  );
-}
-
-// ── Modals ────────────────────────────────────────────────────────────────────
-
-function Modal({
-  title, onClose, children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.2 }}
-        className="w-full max-w-md bg-card border border-border rounded-xl p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold">{title}</h3>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground text-lg leading-none"
-          >
-            ✕
-          </button>
-        </div>
-        {children}
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function AddSectionModal({
-  available, isLoading, existing, onAdd, onClose, isAdding,
-}: {
-  available: SectionTemplate[];
-  // ✅ separate isLoading prop — fixes infinite spinner bug
-  isLoading: boolean;
-  existing: string[];
-  onAdd: (id: string) => void;
-  onClose: () => void;
-  isAdding: boolean;
-}) {
-  return (
-    <Modal title="Add Section" onClose={onClose}>
-      {/* ✅ Show spinner only while loading, not when genuinely empty */}
-      {isLoading ? (
-        <div className="flex justify-center py-8"><Spinner /></div>
-      ) : available.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">
-          No sections available to add.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
-          {available.map((s) => {
-            const added = existing.includes(s.id);
-            return (
-              <button
-                key={s.id}
-                disabled={added || isAdding}
-                onClick={() => onAdd(s.id)}
-                className="flex items-center gap-3 px-4 py-3 text-left border border-border rounded-lg hover:border-primary/50 disabled:opacity-50 transition-colors"
-              >
-                <span className="text-xl">{s?.icon ?? "📋"}</span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{s.name}</p>
-                  {s.description && (
-                    <p className="text-xs text-muted-foreground">{s.description}</p>
+              {/* Score History — 5/12 on xl, full on md, full on mobile */}
+              <motion.div initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }}
+                transition={{ delay:0.15,duration:0.4,ease:[0.16,1,0.3,1] }}
+                className={CARD + " xl:col-span-5 p-6"}>
+                <EdgeGlow />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-base font-semibold text-gray-900 dark:text-[#EDEDEF]">Score History</p>
+                      <p className="text-sm text-gray-400 dark:text-[#8A8F98] mt-0.5">Accuracy over time</p>
+                    </div>
+                    {trend !== null && (
+                      <div className={[
+                        "flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border",
+                        trend >= 0
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/[0.10] dark:text-emerald-400 dark:border-emerald-500/[0.20]"
+                          : "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/[0.10] dark:text-red-400 dark:border-red-500/[0.20]",
+                      ].join(" ")}>
+                        {trend >= 0 ? <TrendingUp className="w-3.5 h-3.5"/> : <TrendingDown className="w-3.5 h-3.5"/>}
+                        {trend >= 0 ? "+" : ""}{trend.toFixed(0)}%
+                      </div>
+                    )}
+                  </div>
+                  {graphData.length < 2 ? (
+                    <div className="h-[180px] flex flex-col items-center justify-center gap-2">
+                      <BarChart3 className="w-8 h-8 text-gray-200 dark:text-white/[0.07]" />
+                      <p className="text-sm text-gray-400 dark:text-[#8A8F98]">Need more tests for trends</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={180}>
+                      <AreaChart data={graphData} margin={{ top:4,right:4,left:-22,bottom:0 }}>
+                        <defs>
+                          <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%"  stopColor="#5E6AD2" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#5E6AD2" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="index" tick={{ fontSize:10,fill:"#8A8F98" }} axisLine={false} tickLine={false}/>
+                        <YAxis domain={[0,100]} tick={{ fontSize:10,fill:"#8A8F98" }} axisLine={false} tickLine={false}/>
+                        <Tooltip content={<ChartTooltip />}/>
+                        <Area type="monotone" dataKey="accuracy" stroke="#5E6AD2" strokeWidth={2}
+                          fill="url(#ag)" dot={{ fill:"#5E6AD2",r:3,strokeWidth:0 }}
+                          activeDot={{ r:5,fill:"#5E6AD2",stroke:"rgba(94,106,210,0.35)",strokeWidth:5 }}/>
+                      </AreaChart>
+                    </ResponsiveContainer>
                   )}
                 </div>
-                <span className={`text-xs font-medium ${added ? "text-green-500" : "text-primary"}`}>
-                  {added ? "✓ Added" : "+ Add"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </Modal>
-  );
-}
+              </motion.div>
 
-function CreateCustomModal({
-  onCreate, onClose, isCreating,
-}: {
-  onCreate: (d: CreateCustomSectionPayload) => void;
-  onClose: () => void;
-  isCreating: boolean;
-}) {
-  const [form, setForm] = useState({
-    slug: "", name: "", description: "", icon: "",
-    topicsRaw: "", promptHint: "", questionCount: 15, duration: 25,
-  });
+              {/* Radar — 3/12 on xl, half on md */}
+              <motion.div initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }}
+                transition={{ delay:0.2,duration:0.4,ease:[0.16,1,0.3,1] }}
+                className={CARD + " xl:col-span-3 p-6"}>
+                <EdgeGlow />
+                <div className="relative z-10">
+                  <p className="text-base font-semibold text-gray-900 dark:text-[#EDEDEF]">Skill Radar</p>
+                  <p className="text-sm text-gray-400 dark:text-[#8A8F98] mt-0.5 mb-1">Accuracy by topic</p>
+                  {radarData.length < 3 ? (
+                    <div className="h-[192px] flex flex-col items-center justify-center gap-2">
+                      <Activity className="w-7 h-7 text-gray-200 dark:text-white/[0.07]"/>
+                      <p className="text-sm text-gray-400 dark:text-[#8A8F98] text-center">Test more subjects<br/>to unlock radar</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={192}>
+                      <RadarChart data={radarData} margin={{ top:8,right:16,left:16,bottom:8 }}>
+                        <PolarGrid stroke="rgba(94,106,210,0.15)"/>
+                        <PolarAngleAxis dataKey="subject" tick={{ fontSize:9,fill:"#8A8F98" }}/>
+                        <Radar name="Accuracy" dataKey="value" stroke="#5E6AD2" fill="#5E6AD2" fillOpacity={0.22} strokeWidth={1.5}/>
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </motion.div>
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onCreate({
-      slug: form.slug,
-      name: form.name,
-      description: form.description || undefined,
-      icon: form?.icon || undefined,
-      topics: form.topicsRaw.split(",").map((t) => t.trim()).filter(Boolean),
-      promptHint: form.promptHint || undefined,
-      questionCount: form.questionCount,
-      duration: form.duration,
-    });
-  };
+              {/* Section breakdown mini — 4/12 on xl, half on md */}
+              <motion.div initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }}
+                transition={{ delay:0.25,duration:0.4,ease:[0.16,1,0.3,1] }}
+                className={CARD + " xl:col-span-4 p-6"}>
+                <EdgeGlow />
+                <div className="relative z-10 h-full flex flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-base font-semibold text-gray-900 dark:text-[#EDEDEF]">Section Scores</p>
+                      <p className="text-sm text-gray-400 dark:text-[#8A8F98] mt-0.5">Weakest first</p>
+                    </div>
+                    <div className="hidden sm:flex gap-3 text-[11px] text-gray-400 dark:text-[#8A8F98]">
+                      {[["#ef4444","<50"],["#f59e0b","50–70"],["#22c55e",">70"]].map(([c,l])=>(
+                        <span key={l} className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full" style={{ background:c as string }}/>
+                          {l}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
-  const f = (key: keyof typeof form) => ({
-    value: String(form[key]),
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm((p) => ({ ...p, [key]: e.target.value })),
-  });
+                  {sectionStats.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <p className="text-sm text-gray-400 dark:text-[#8A8F98]">No section data yet</p>
+                    </div>
+                  ) : (
+                    <div className="flex-1 space-y-3 overflow-hidden">
+                      {[...sectionStats].sort((a,b) => a.avgAccuracy - b.avgAccuracy).slice(0, 6).map((s, i) => {
+                        const color = accColor(s.avgAccuracy);
+                        return (
+                          <motion.div key={s.slug}
+                            initial={{ opacity:0,x:-10 }} animate={{ opacity:1,x:0 }}
+                            transition={{ delay:0.3+i*0.04,duration:0.28 }}
+                            className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm text-gray-600 dark:text-[#8A8F98] truncate max-w-[140px]">{s.name}</p>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[11px] text-gray-400 dark:text-[#8A8F98]/60">{s.attempts}×</span>
+                                <span className="text-sm font-bold tabular-nums" style={{ color }}>{s.avgAccuracy}%</span>
+                              </div>
+                            </div>
+                            <div className="h-1.5 bg-gray-100 dark:bg-white/[0.07] rounded-full overflow-hidden">
+                              <motion.div className="h-full rounded-full"
+                                style={{ background:`linear-gradient(90deg,${color}88,${color})` }}
+                                initial={{ width:0 }} animate={{ width:`${s.avgAccuracy}%` }}
+                                transition={{ duration:0.9,ease:[0.16,1,0.3,1],delay:0.35+i*0.04 }}/>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
 
-  return (
-    <Modal title="Create Custom Section" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Slug" placeholder="react-js" {...f("slug")} required />
-          <Field label="Name" placeholder="React.js" {...f("name")} required />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Icon (emoji)" placeholder="⚛️" {...f("icon")} />
-          <Field label="Description" placeholder="Optional" {...f("description")} />
-        </div>
-        <Field label="Topics (comma-separated)" placeholder="Hooks, JSX, State" {...f("topicsRaw")} required />
-        <Field label="Prompt hint (optional)" placeholder="Focus on React 18 patterns" {...f("promptHint")} />
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Questions</label>
-            <input
-              type="number" min={5} max={30} {...f("questionCount")}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background outline-none focus:border-primary"
-            />
+        {/* ═══════════════════════════════════════════════════════════════════
+            MAIN CONTENT ROW — Assessments (left) + Recent Results (right)
+            Desktop: 7/12 + 5/12  |  Tablet: stacked  |  Mobile: stacked
+        ═══════════════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 lg:gap-4 items-start">
+
+          {/* ── Assessments column — 7/12 ── */}
+          <div className="xl:col-span-7 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold tracking-tight text-gray-900 dark:text-[#EDEDEF]">Your Assessments</h2>
+                <p className="text-sm text-gray-400 dark:text-[#8A8F98] mt-0.5">AI-generated tests for each role</p>
+              </div>
+              {(assessments?.length ?? 0) > 0 && (
+                <motion.button whileHover={{ scale:1.02,y:-1 }} whileTap={{ scale:0.98 }}
+                  transition={{ duration:0.2,ease:[0.16,1,0.3,1] }}
+                  onClick={() => navigate("/assessment/new")}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl bg-[#5E6AD2] text-white hover:bg-[#6872D9] transition-all duration-200 shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_3px_10px_rgba(94,106,210,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]">
+                  <Plus className="w-3.5 h-3.5"/>
+                  New
+                </motion.button>
+              )}
+            </div>
+
+            {assessLoading ? (
+              <div className="flex justify-center py-16"><Spinner className="w-7 h-7 text-[#5E6AD2]"/></div>
+            ) : !assessments?.length ? (
+              <EmptyState onNew={() => navigate("/assessment/new")} />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {assessments.map((a, i) => (
+                  <AssessmentCard key={a.id} assessment={a} index={i} onClick={() => handleAssessmentClick(a)}/>
+                ))}
+              </div>
+            )}
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Duration (min)</label>
-            <input
-              type="number" min={10} max={60} {...f("duration")}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background outline-none focus:border-primary"
-            />
-          </div>
-        </div>
-        <button
-          type="submit"
-          disabled={isCreating}
-          className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-60 mt-1"
-        >
-          {isCreating ? <><Spinner className="w-4 h-4" /> Creating...</> : "Create Section"}
-        </button>
-      </form>
-    </Modal>
-  );
-}
 
-function Field({
-  label, placeholder, value, onChange, required,
-}: {
-  label: string;
-  placeholder: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  required?: boolean;
-}) {
-  return (
-    <div>
-      <label className="text-xs text-muted-foreground mb-1 block">{label}</label>
-      <input
-        placeholder={placeholder}
-        value={value}
-        onChange={onChange}
-        required={required}
-        className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background outline-none focus:border-primary transition-colors"
-      />
+          {/* ── Recent Results column — 5/12 ── */}
+          {results.length > 0 && (
+            <motion.div className="xl:col-span-5 space-y-4"
+              initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }}
+              transition={{ delay:0.2,duration:0.4,ease:[0.16,1,0.3,1] }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold tracking-tight text-gray-900 dark:text-[#EDEDEF]">Recent Results</h2>
+                  <p className="text-sm text-gray-400 dark:text-[#8A8F98] mt-0.5">Your latest test scores</p>
+                </div>
+                <button onClick={() => navigate("/results")}
+                  className="text-sm text-[#5E6AD2] hover:text-[#6872D9] transition-colors flex items-center gap-0.5 font-medium">
+                  View all <ArrowRight className="w-3.5 h-3.5 ml-0.5"/>
+                </button>
+              </div>
+
+              <div className={CARD + " divide-y divide-black/[0.05] dark:divide-white/[0.05]"}>
+                <EdgeGlow/>
+                {[...results].reverse().slice(0, 7).map((r, i) => (
+                  <RecentResultRow key={r.id} result={r} index={i} onClick={() => navigate(`/results/${r.id}`)}/>
+                ))}
+              </div>
+
+              {/* Mini section breakdown — full width below results */}
+              {sectionStats.length > 0 && (
+                <motion.div initial={{ opacity:0,y:12 }} animate={{ opacity:1,y:0 }}
+                  transition={{ delay:0.3,duration:0.4,ease:[0.16,1,0.3,1] }}
+                  className={CARD + " p-5"}>
+                  <EdgeGlow/>
+                  <div className="relative z-10">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-[#EDEDEF] mb-3">All Sections</p>
+                    <div className="space-y-2.5">
+                      {[...sectionStats].sort((a,b) => a.avgAccuracy - b.avgAccuracy).map((s,i) => {
+                        const color = accColor(s.avgAccuracy);
+                        return (
+                          <div key={s.slug} className="flex items-center gap-3">
+                            <p className="text-xs text-gray-500 dark:text-[#8A8F98] w-28 shrink-0 truncate">{s.name}</p>
+                            <div className="flex-1 h-1.5 bg-gray-100 dark:bg-white/[0.07] rounded-full overflow-hidden">
+                              <motion.div className="h-full rounded-full"
+                                style={{ background:`linear-gradient(90deg,${color}88,${color})` }}
+                                initial={{ width:0 }} animate={{ width:`${s.avgAccuracy}%` }}
+                                transition={{ duration:0.9,ease:[0.16,1,0.3,1],delay:0.35+i*0.03 }}/>
+                            </div>
+                            <span className="text-xs font-bold tabular-nums w-8 text-right shrink-0" style={{ color }}>
+                              {s.avgAccuracy}%
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </div>
+
+        <div className="h-8"/>
+      </main>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recent Result Row
+// ─────────────────────────────────────────────────────────────────────────────
+
+function RecentResultRow({ result: r, index, onClick }: {
+  result: ResultSummary; index: number; onClick: () => void;
+}) {
+  const color = accColor(r.accuracy);
+  const Icon  = r.accuracy >= 70 ? CheckCircle2 : r.accuracy >= 50 ? AlertTriangle : XCircle;
+
+  return (
+    <motion.div
+      initial={{ opacity:0,x:-10 }} animate={{ opacity:1,x:0 }}
+      transition={{ delay:0.22+index*0.05,duration:0.3,ease:[0.16,1,0.3,1] }}
+      onClick={onClick}
+      className="relative z-10 flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-colors group hover:bg-gray-50/80 dark:hover:bg-white/[0.025]">
+      <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+        style={{ background:`${color}18`,border:`1px solid ${color}35` }}>
+        <Icon className="w-4 h-4" style={{ color }}/>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold truncate text-gray-800 dark:text-[#EDEDEF] group-hover:text-[#5E6AD2] dark:group-hover:text-[#a5adff] transition-colors">{r.title}</p>
+        <p className="text-xs text-gray-400 dark:text-[#8A8F98] mt-0.5">
+          {r.correctAnswers}/{r.totalQuestions}{r.company && ` · ${r.company}`} · {Math.floor(r.timeSpent/60)}m
+        </p>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className="text-base font-bold tabular-nums" style={{ color }}>{r.accuracy}%</span>
+        <ArrowUpRight className="w-3.5 h-3.5 text-gray-300 dark:text-white/[0.15] group-hover:text-[#5E6AD2] transition-colors"/>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Assessment Card
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AssessmentCard({ assessment: a, index, onClick }: {
+  assessment: Assessment; index: number; onClick: () => void;
+}) {
+  const cfg            = STATUS_CFG[a.status];
+  const activeSections = a.sections?.filter((s) => s.isActive) ?? [];
+
+  const actionLabel = {
+    PENDING:   "Review Plan",
+    ACTIVE:    a.session?.status === "ACTIVE" ? "Resume Test" : "Start Test",
+    COMPLETED: "View Results",
+    EXPIRED:   "View Results",
+  }[a.status];
+
+  const ActionIcon = { PENDING:ChevronRight,ACTIVE:Play,COMPLETED:BarChart3,EXPIRED:BarChart3 }[a.status];
+
+  const glowColor = { PENDING:"#f59e0b",ACTIVE:"#3b82f6",COMPLETED:"#22c55e",EXPIRED:"#ef4444" }[a.status];
+
+  return (
+    <motion.div
+      initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }}
+      transition={{ delay:index*0.07,duration:0.35,ease:[0.16,1,0.3,1] }}
+      whileHover={{ y:-4,scale:1.007 }}
+      onClick={onClick}
+      className={[
+        CARD,"p-5 cursor-pointer group transition-all duration-200",
+        "hover:border-[#5E6AD2]/20 hover:shadow-[0_6px_28px_rgba(94,106,210,0.12)]",
+        "dark:hover:border-[#5E6AD2]/25 dark:hover:shadow-[0_0_0_1px_rgba(94,106,210,0.18),0_12px_40px_rgba(0,0,0,0.8),0_0_60px_rgba(94,106,210,0.06)]",
+      ].join(" ")}>
+
+      {/* Status glow blob */}
+      <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl opacity-[0.09] dark:opacity-[0.14] pointer-events-none"
+        style={{ background:glowColor }}/>
+      <EdgeGlow/>
+
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm leading-snug truncate text-gray-900 dark:text-[#EDEDEF] group-hover:text-[#5E6AD2] dark:group-hover:text-[#a5adff] transition-colors">
+              {a.title}
+            </h3>
+            {(a.role || a.company) && (
+              <p className="text-xs text-gray-400 dark:text-[#8A8F98] mt-0.5 truncate">
+                {[a.role,a.company].filter(Boolean).join(" @ ")}
+              </p>
+            )}
+          </div>
+          <div className={`flex items-center gap-1.5 shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${cfg.pill}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`}/>
+            {cfg.label}
+          </div>
+        </div>
+
+        {/* Section chips */}
+        {activeSections.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {activeSections.slice(0,4).map((s) => (
+              <span key={s.id} className="text-[11px] px-1.5 py-0.5 rounded-md bg-gray-50 dark:bg-white/[0.06] border border-gray-200 dark:border-white/[0.08] text-gray-500 dark:text-[#8A8F98]">
+                {s.icon} {s.name}
+              </span>
+            ))}
+            {activeSections.length > 4 && (
+              <span className="text-[11px] text-gray-400 dark:text-[#8A8F98]/60 py-0.5">+{activeSections.length-4}</span>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-3 border-t border-black/[0.05] dark:border-white/[0.06]">
+          <div className="flex items-center gap-3 text-[11px] text-gray-400 dark:text-[#8A8F98]">
+            <span className="flex items-center gap-1"><Clock className="w-3 h-3"/>{a.totalDuration}m</span>
+            <span className="flex items-center gap-1"><Zap className="w-3 h-3"/>{activeSections.length}</span>
+            <span className="flex items-center gap-1">
+              <Activity className="w-3 h-3"/>
+              {new Date(a.createdAt).toLocaleDateString("en-IN",{ day:"numeric",month:"short" })}
+            </span>
+          </div>
+          <motion.span whileHover={{ scale:1.04 }}
+            className={[
+              "flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition-all duration-200",
+              a.status === "ACTIVE"
+                ? "bg-[#5E6AD2] text-white shadow-[0_2px_10px_rgba(94,106,210,0.4)]"
+                : "text-[#5E6AD2] dark:text-[#a5adff] group-hover:bg-[#5E6AD2]/[0.10]",
+            ].join(" ")}>
+            <ActionIcon className="w-3 h-3"/>
+            {actionLabel}
+          </motion.span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Empty State
+// ─────────────────────────────────────────────────────────────────────────────
+
+function EmptyState({ onNew }: { onNew: () => void }) {
+  return (
+    <motion.div initial={{ opacity:0,scale:0.97 }} animate={{ opacity:1,scale:1 }}
+      transition={{ duration:0.4,ease:[0.16,1,0.3,1] }}
+      className="flex flex-col items-center justify-center py-20 rounded-2xl text-center px-6 border border-dashed border-gray-200 dark:border-white/[0.08] bg-white/50 dark:bg-white/[0.02]">
+      <motion.div animate={{ y:[0,-7,0] }} transition={{ duration:3.5,repeat:Infinity,ease:"easeInOut" }}
+        className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 bg-[#5E6AD2]/[0.10] border border-[#5E6AD2]/[0.20] shadow-[0_0_28px_rgba(94,106,210,0.2)]">
+        <Sparkles className="w-7 h-7 text-[#5E6AD2]"/>
+      </motion.div>
+      <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-[#EDEDEF]">No assessments yet</h3>
+      <p className="text-sm text-gray-400 dark:text-[#8A8F98] mb-1.5 max-w-xs leading-relaxed">
+        Enter a role and company — AI designs a custom test plan for you.
+      </p>
+      <p className="text-xs font-mono text-gray-300 dark:text-[#8A8F98]/40 mb-7">
+        e.g. "SDE-1 @ Google" → DSA · OS · DBMS · CN · Aptitude
+      </p>
+      <motion.button whileHover={{ scale:1.03,y:-2 }} whileTap={{ scale:0.98 }}
+        transition={{ duration:0.2,ease:[0.16,1,0.3,1] }}
+        onClick={onNew}
+        className="flex items-center cursor-pointer gap-2 px-6 py-3 text-sm font-semibold rounded-xl bg-[#5E6AD2] text-white hover:bg-[#6872D9] transition-all duration-200 shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_14px_rgba(94,106,210,0.35),inset_0_1px_0_rgba(255,255,255,0.15)] hover:shadow-[0_0_0_1px_rgba(104,114,217,0.6),0_6px_20px_rgba(94,106,210,0.45)]">
+        <Plus className="w-4 h-4"/>
+        Create First Assessment
+      </motion.button>
+    </motion.div>
   );
 }

@@ -1,14 +1,3 @@
-// src/lib/axios.ts
-//
-// ROOT CAUSE OF THE LOOP:
-// The old interceptor did: window.location.href = '/login' on 401.
-// This causes a full page reload → ProtectedRoute mounts → calls useUser()
-// → hits /auth/me → gets 401 → interceptor fires again → redirect → reload → repeat.
-//
-// FIX: Never do window.location inside the axios interceptor.
-// Just reject the error and let the calling code / ProtectedRoute handle it.
-// ProtectedRoute will see user=null and navigate() to /login cleanly (no reload).
-
 import axios from "axios";
 import qs from "qs";
 
@@ -20,7 +9,6 @@ export const axiosServices = axios.create({
   },
 });
 
-// Track whether a refresh is already in flight to avoid parallel refresh calls
 let isRefreshing = false;
 
 axiosServices.interceptors.response.use(
@@ -52,9 +40,6 @@ axiosServices.interceptors.response.use(
         return axiosServices(original);
       } catch {
         isRefreshing = false;
-        // Refresh failed — reject the error.
-        // DO NOT do window.location.href here.
-        // ProtectedRoute will handle the redirect via React Router navigate().
         return Promise.reject(error);
       }
     }

@@ -3,6 +3,17 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+@theme {
+  --font-product: 'Product', sans-serif;
+  --font-playground: 'Playground', monospace;
+  --color-clifford: #da373d;
+}
+@font-face {
+  font-family: 'Product';
+  src: url('./utility/Product.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
 
 @layer base {
   :root {
