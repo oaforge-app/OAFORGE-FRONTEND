@@ -1,18 +1,135 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/logo.webp" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OAForge — Forge Your OA Skills</title>
-    <link href="/src/index.css" rel="stylesheet">
-    <meta name="description" content="AI-powered Online Assessment preparation platform. Practice English, Quantitative, Logical, DSA, DBMS and more." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/webp" href="/logo.webp" />
+  <link rel="apple-touch-icon" href="/logo.webp" />
+
+  <!-- Primary Meta Tags -->
+  <title>OAForge — AI-Powered Online Assessment Practice Platform</title>
+   <link href="/src/index.css" rel="stylesheet">
+  <meta name="title" content="OAForge — AI-Powered Online Assessment Practice Platform" />
+  <meta name="description"
+    content="OAForge uses AI to generate custom Online Assessment tests tailored to your target role and company. Practice DSA, DBMS, OS, CN, Aptitude and more. Built by Rajat Parihar." />
+  <meta name="keywords"
+    content="OAForge, Online Assessment Practice, OA Preparation, AI Test Generator, DSA Practice, Aptitude Test, DBMS Practice, SDE Interview Prep, Coding Assessment, Rajat Parihar" />
+  <meta name="author" content="Rajat Parihar" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta name="googlebot" content="index, follow" />
+
+  <!-- Canonical -->
+  <link rel="canonical" href="https://oaforge.vercel.app/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://oaforge.vercel.app/" />
+  <meta property="og:title" content="OAForge — AI-Powered Online Assessment Practice" />
+  <meta property="og:description"
+    content="Generate custom OA tests tailored to your target role and company. AI designs the sections, generates questions, and scores you instantly." />
+  <meta property="og:image" content="https://oaforge.vercel.app/logo.webp" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="OAForge — AI Online Assessment Practice Platform" />
+  <meta property="og:site_name" content="OAForge" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:creator" content="@rajatparihar" />
+  <meta name="twitter:url" content="https://oaforge.vercel.app/" />
+  <meta name="twitter:title" content="OAForge — AI-Powered OA Practice" />
+  <meta name="twitter:description"
+    content="Generate custom Online Assessment tests with AI. Tailored to your role, company, and JD." />
+  <meta name="twitter:image" content="https://oaforge.vercel.app/logo.webp" />
+
+  <!-- Theme -->
+  <meta name="theme-color" content="#020203" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="msapplication-TileColor" content="#020203" />
+
+  <!-- Misc SEO -->
+  <meta name="language" content="English" />
+  <meta name="revisit-after" content="7 days" />
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="MobileOptimized" content="320" />
+
+  <!-- Web App Manifest -->
+  <link rel="manifest" href="/site.webmanifest" />
+
+  <!-- Structured Data: WebApplication -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "OAForge",
+      "url": "https://oaforge.vercel.app",
+      "description": "AI-powered Online Assessment preparation. Enter your target role and company — AI generates a custom test plan with sections, questions, and instant scoring.",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web Browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "author": {
+        "@type": "Person",
+        "name": "Rajat Parihar",
+        "url": "https://oaforge.vercel.app"
+      },
+      "featureList": [
+        "AI-generated assessment plans",
+        "Role and company-specific test sections",
+        "Parallel question generation via Groq AI",
+        "Countdown timer with auto-save",
+        "Section-by-section score reports",
+        "Email score report delivery",
+        "Progress tracking and analytics"
+      ],
+      "inLanguage": "en-US"
+    }
+    </script>
+
+  <!-- Structured Data: WebSite -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "url": "https://oaforge.vercel.app",
+      "name": "OAForge",
+      "description": "AI-powered OA preparation platform built by Rajat Parihar",
+      "author": { "@type": "Person", "name": "Rajat Parihar" },
+      "inLanguage": "en-US"
+    }
+    </script>
+
+  <!-- Structured Data: BreadcrumbList -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home",      "item": "https://oaforge.vercel.app/" },
+      ]
+    }
+    </script>
+
+  <!-- Performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+
+  <!-- Fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Geist:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
+
+  <link rel="alternate" hreflang="en" href="https://oaforge.vercel.app/" />
+  <link rel="alternate" hreflang="x-default" href="https://oaforge.vercel.app/" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>
