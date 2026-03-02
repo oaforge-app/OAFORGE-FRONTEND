@@ -28,6 +28,8 @@ export default function ProtectedRoute({
   allowAuthenticated,
   redirectTo,
 }: ProtectedRouteProps) {
+  console.log(redirectTo);
+  
   // On public routes (login/register) disable the /auth/me query entirely
   // so we don't fire an unnecessary request that always 401s.
   const isPublicRoute = !allowAuthenticated;

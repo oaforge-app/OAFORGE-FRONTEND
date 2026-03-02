@@ -1,14 +1,22 @@
-// src/lib/config.ts
 export const QUERY_KEY = {
-  me:                 ["me"]                          as const,
-  available_sections: ["sections", "available"]       as const,
-  my_sections:        ["sections", "mine"]            as const,
-  active_session:     ["test", "session", "active"]   as const,
-  session:            (id: string) => ["test", "session", id] as const,
-  my_results:         ["results", "me"]               as const,
-  results_summary:    ["results", "me", "summary"]    as const,
-  result_detail:      (id: string) => ["results", id] as const,
+  // Auth
+  me: ["me"] as const,
+
+  // Assessments
+  my_assessments:   ["assessments", "mine"]          as const,
+  assessment:       (id: string) => ["assessments", id] as const,
+
+  // Session (within an assessment)
+  session:          (assessmentId: string) => ["assessments", assessmentId, "session"] as const,
+
+  // Results
+  my_results:       ["results", "me"]                as const,
+  result_detail:    (id: string) => ["results", id]  as const,
+
+  // User profile
+  user_profile:     ["user", "me"]                   as const,
+
   // Namespace keys for bulk invalidation
-  reset_sections:     ["sections"]                    as const,
-  reset_results:      ["results"]                     as const,
+  reset_assessments: ["assessments"]                 as const,
+  reset_results:    ["results"]                      as const,
 };
