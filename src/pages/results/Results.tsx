@@ -119,7 +119,7 @@ export default function ResultsPage() {
             <motion.button whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.98 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               onClick={() => navigate("/assessment/new")}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-[#5E6AD2] text-white hover:bg-[#6872D9] shrink-0 transition-all duration-200 shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_14px_rgba(94,106,210,0.35),inset_0_1px_0_rgba(255,255,255,0.15)] hover:shadow-[0_0_0_1px_rgba(104,114,217,0.6),0_6px_20px_rgba(94,106,210,0.45)]">
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-[#5E6AD2] text-white hover:bg-[#6872D9] shrink-0 transition-all duration-200 shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_14px_rgba(94,106,210,0.35),inset_0_1px_0_rgba(255,255,255,0.15)] hover:shadow-[0_0_0_1px_rgba(104,114,217,0.6),0_6px_20px_rgba(94,106,210,0.45)] cursor-pointer">
               <Plus className="w-4 h-4" />
               New Assessment
             </motion.button>
@@ -364,7 +364,7 @@ function ResultRow({
       transition={{ delay: index * 0.04, duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       className={[
         CARD,
-        "overflow-hidden cursor-pointer group transition-all duration-200",
+        "overflow-hidden  group transition-all duration-200",
         "hover:border-[#5E6AD2]/20 hover:shadow-[0_6px_28px_rgba(94,106,210,0.10)]",
         "dark:hover:border-[#5E6AD2]/25 dark:hover:shadow-[0_0_0_1px_rgba(94,106,210,0.18),0_12px_40px_rgba(0,0,0,0.8)]",
       ].join(" ")}
@@ -434,7 +434,7 @@ function ResultRow({
           {/* View detail */}
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             onClick={onView}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#5E6AD2] dark:text-[#a5adff] hover:bg-[#5E6AD2]/[0.10] rounded-lg transition-colors">
+            className="cursor-pointer flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#5E6AD2] dark:text-[#a5adff] hover:bg-[#5E6AD2]/[0.10] rounded-lg transition-colors">
             View <ChevronRight className="w-3.5 h-3.5" />
           </motion.button>
         </div>

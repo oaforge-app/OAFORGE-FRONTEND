@@ -122,7 +122,7 @@ export default function Navbar() {
             : { top: 0,  width: "100%", borderRadius: 0,    paddingLeft: 24, paddingRight: 24 }
         }
         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="hidden md:flex items-center justify-between pointer-events-auto h-[52px]"
+        className="hidden md:flex items-center justify-between pointer-events-auto h-[60px]"
         style={{
           position: "fixed",
           left: 0,
@@ -155,12 +155,12 @@ export default function Navbar() {
                 <motion.div
                   whileHover={{ scale: 1.08, rotate: 5 }}
                   transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                  className="w-[30px] h-[30px] rounded-xl overflow-hidden flex-shrink-0 transition-all duration-200"
+                  className="w-[30px] h-[30px] rounded-xl overflow-hidden flex-shrink-0 transition-all duration-200 "
                   style={{ boxShadow: `0 0 0 1px ${navBorder}, 0 2px 8px rgba(94,106,210,0.15)` }}
                 >
                   <img src="/logo.webp" alt="OAForge logo" className="w-full h-full object-cover" />
                 </motion.div>
-                <div className="flex flex-col leading-none">
+                <div className="flex flex-col leading-none cursor-pointer">
                   <span className="text-[13px] font-bold tracking-tight" style={{ color: textPrimary }}>
                     OAForge
                   </span>
@@ -183,7 +183,7 @@ export default function Navbar() {
                 onClick={() => navigate(item.href)}
                 className="relative flex items-center gap-1.5 px-3 py-[7px] rounded-full
                   select-none text-[11.5px] font-semibold tracking-[0.05em] uppercase
-                  transition-colors duration-150 outline-none"
+                  transition-colors duration-150 outline-none cursor-pointer"
                 style={{ color: isActive ? textPrimary : textMuted }}
                 onMouseEnter={(e) => {
                   if (!isActive) (e.currentTarget as HTMLElement).style.color = textHover;

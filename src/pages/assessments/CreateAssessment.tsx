@@ -167,7 +167,7 @@ export default function CreateAssessmentPage() {
                   AI Assessment Generator
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-[#EDEDEF] mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-[#EDEDEF] mb-2 cursor-pointer">
                 Create New Assessment
               </h1>
               <p className="text-sm text-gray-400 dark:text-[#8A8F98] leading-relaxed max-w-xl">
