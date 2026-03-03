@@ -19,6 +19,7 @@ import {
     SiJsonwebtokens, SiFramer, SiZod, SiMailgun,
 } from "react-icons/si";
 import { TbBrandTabler } from "react-icons/tb";
+import AnimatedGenerateButton from "@/components/ui/FreeNos";
 
 /* ─── Design tokens ──────────────────────────────────────────────────────── */
 // const E = [0.16, 1, 0.3, 1] as const;  // expo-out easing
@@ -434,53 +435,16 @@ function Hero() {
 
             <motion.div style={{ y, opacity: op }} className="relative z-10 w-full max-w-5xl mx-auto text-center">
 
-                {/* Groq badge */}
-                <motion.div
-                    initial={{ opacity: 0, y: 12, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ duration: 0.5, ease: EASE_OUT }}
-                    className="flex justify-center mb-6 sm:mb-8 px-4"
-                >
-                    <div
-                        className={`
-      inline-flex items-center justify-center
-      rounded-full
-      px-3 py-1.5
-      sm:px-4 sm:py-2
-      gap-2
-      max-w-full
-      text-center
-    `}
-                        style={{
-                            background: "rgba(94,106,210,0.07)",
-                            border: "1px solid rgba(94,106,210,0.22)",
-                            boxShadow: "0 0 24px rgba(94,106,210,0.1)",
-                        }}
-                    >
-                        <span
-                            className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 animate-pulse"
-                            style={{
-                                background: "#5E6AD2",
-                                boxShadow: "0 0 8px #5E6AD2",
-                            }}
-                        />
+             
+             
 
-                        <AnimatedShinyText
-                            shimmerWidth={120}
-                            className={`  text-[10px]
-        sm:text-[11px]
-        md:text-xs
-        font-mono
-        tracking-widest
-        uppercase
-        whitespace-normal
-        break-words`}
-    
-                        >
-                            Powered by Groq — world's fastest AI inference
-                        </AnimatedShinyText>
-                    </div>
-                </motion.div>
+                      <div className="my-5">
+                          <AnimatedGenerateButton
+              labelIdle="Powered by Groq — world's fastest AI inference"
+              labelActive="Building"
+              highlightHueDeg={5000}/>
+                      </div>
+                 
 
                 {/* Headline */}
                 <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1, ease: EASE_OUT }}
