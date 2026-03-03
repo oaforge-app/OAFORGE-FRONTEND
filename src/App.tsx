@@ -17,10 +17,12 @@ import AssessmentPlanPage  from "@/pages/assessments/AssessmentPlan";
 import TestScreenPage from "./pages/test/TestScreen";
 import ResultDetailPage    from "@/pages/results/ResultDetail";
 import SettingsPage from "./pages/auth/Settings";
-import { AuthGate } from "./utility/AuthGate";
+import AuthGate from "./utility/AuthGate";
 import ResultsPage from "./pages/results/Results";
 import { ThemeProvider } from "next-themes";
 import NotFoundPage from "./pages/NotFound";
+import ForgotPasswordForm from "./pages/auth/ForgotPass";
+import LandingPage from "./pages/LandingPage";
 
 // ── Root layout ───────────────────────────────────────────────────────────────
 
@@ -60,6 +62,14 @@ const router = createBrowserRouter([
             <RegisterPage />
           </ProtectedRoute>
         ),
+      },
+      {
+        path:"forgot-password",
+        element:(
+          <ProtectedRoute allowAuthenticated={false} redirectTo="/dashboard">
+            <ForgotPasswordForm/>
+          </ProtectedRoute>
+        )
       },
       {
         path: "auth/callback",

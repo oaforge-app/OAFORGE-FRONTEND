@@ -210,7 +210,7 @@ export default function Dashboard() {
           <motion.button whileHover={{ scale:1.02,y:-1 }} whileTap={{ scale:0.98 }}
             transition={{ duration:0.2,ease:[0.16,1,0.3,1] }}
             onClick={() => navigate("/assessment/new")}
-            className="cursor-pointer inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl bg-[#5E6AD2] text-white hover:bg-[#6872D9] shrink-0 transition-all duration-200 shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_14px_rgba(94,106,210,0.35),inset_0_1px_0_rgba(255,255,255,0.15)] hover:shadow-[0_0_0_1px_rgba(104,114,217,0.6),0_6px_20px_rgba(94,106,210,0.45)]">
+            className="cursor-pointer inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl bg-[#5E6AD2] text-white hover:bg-[#6872D9] shrink-0 transition-all duration-200 shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_14px_rgba(94,106,210,0.35),inset_0_1px_0_rgba(255,255,255,0.15)] hover:shadow-[0_0_0_1px_rgba(104,114,217,0.6),0_6px_20px_rgba(94,106,210,0.45)] cursor-pointer">
             <Plus className="w-4 h-4" />
             New Assessment
           </motion.button>
