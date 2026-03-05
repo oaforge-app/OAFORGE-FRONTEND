@@ -72,7 +72,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
-<LandingNav/>
+{/* <LandingNav/> */}
       {/* ── Left: Form ── */}
       <div className="w-full lg:w-5/12 flex items-center justify-center p-8 relative bg-background">
         {/* Background texture */}

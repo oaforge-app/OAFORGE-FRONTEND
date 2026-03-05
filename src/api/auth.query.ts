@@ -45,6 +45,11 @@ export const resetPasswordApiHandler = async (d: {
 
 export const refreshTokenApiHandler = async () =>
   (await axiosServices.get("/auth/refresh-token")).data;
+export const sendRegisterOtpHandler = async (email: string) =>
+  (await axiosServices.post("/auth/send-register-otp", { email })).data;
+
+export const verifyRegisterOtpHandler = async (d: { email: string; otp: string }) =>
+  (await axiosServices.post("/auth/verify-register-otp", d)).data;
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
@@ -65,6 +70,8 @@ export const useUser = (enabled = true) => {
     loading: enabled ? isLoading : false,
   };
 };
+
+
 /**
  * useSignIn — returns { loginMutation }
  * Matches your existing SignInForm hook shape exactly.
@@ -136,4 +143,24 @@ export const useResetPassword = () => {
     onError: (e: any) =>
       toast.error(e?.response?.data?.message ?? "Failed to reset password."),
   });
+};
+
+export const useSendRegisterOtp = () => {
+  const sendOtpMutation = useMutation({
+    mutationFn: sendRegisterOtpHandler,
+    onError: (e: any) => {
+      toast.error(e?.response?.data?.message ?? "Failed to send OTP. Try again.");
+    },
+  });
+  return { sendOtpMutation };
+};
+
+export const useVerifyRegisterOtp = () => {
+  const verifyOtpMutation = useMutation({
+    mutationFn: verifyRegisterOtpHandler,
+    onError: (e: any) => {
+      toast.error(e?.response?.data?.message ?? "Invalid or expired OTP.");
+    },
+  });
+  return { verifyOtpMutation };
 };
