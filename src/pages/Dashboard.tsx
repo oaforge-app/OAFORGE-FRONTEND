@@ -1,8 +1,3 @@
-// src/pages/Dashboard.tsx
-// Full-width bento-grid layout — Linear / Modern design system
-// Fully responsive: mobile → tablet → desktop
-// Perfect dark AND light mode via explicit Tailwind dark: classes
-
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,6 +18,7 @@ import { useMyResults }                   from "@/api/results.query";
 import { Spinner }                        from "@/components/ui/spinner";
 import type { Assessment, ResultSummary } from "@/types";
 import Navbar from "./components/Navbar";
+import { KpiSpotlightCard } from "@/components/ui/KpiSpotlightCard";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens / helpers
@@ -79,7 +75,7 @@ export default function Dashboard() {
   const overallAcc   = rd?.overallAccuracy ?? 0;
   const totalTests   = rd?.totalTests   ?? 0;
   const needsKey     = user && !user.hasGroqApiKey;
-
+const [hoveredKpi, setHoveredKpi] = useState<string | null>(null);
   const streak = useMemo(() => {
     if (!results.length) return 0;
     const sorted = [...results].sort(
@@ -181,10 +177,10 @@ export default function Dashboard() {
                     Add a <strong>Groq API key</strong> in Settings to generate AI-powered tests.
                   </p>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex gap-2 shrink-0 ">
                   <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
                     onClick={() => navigate("/settings")}
-                    className="text-xs px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors shadow-[0_2px_8px_rgba(245,158,11,0.35)]">
+                    className="text-xs px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors shadow-[0_2px_8px_rgba(245,158,11,0.35)] cursor-pointer">
                     Add Key
                   </motion.button>
                   <button onClick={() => setBanner(false)} className="text-sm px-2 py-1.5 text-gray-400 dark:text-[#8A8F98] hover:text-gray-700 dark:hover:text-[#EDEDEF] transition-colors">✕</button>
@@ -222,37 +218,18 @@ export default function Dashboard() {
         {totalTests > 0 && (
           <>
             {/* ── Row 1: 4 KPI cards ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-              {kpis.map((k, i) => (
-                <motion.div key={k.label}
-                  initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }}
-                  transition={{ delay:i*0.07,duration:0.4,ease:[0.16,1,0.3,1] }}
-                  whileHover={{ y:-3,scale:1.01 }}
-                  className={CARD + " p-5 cursor-default transition-all duration-200 hover:shadow-[0_6px_24px_rgba(0,0,0,0.10)] dark:hover:shadow-[0_0_0_1px_rgba(255,255,255,0.09),0_10px_40px_rgba(0,0,0,0.8)]"}>
-                  {/* Per-card radial glow */}
-                  <div className="absolute inset-0 opacity-[0.08] dark:opacity-[0.12] pointer-events-none"
-                    style={{ background:`radial-gradient(circle at 80% 15%,${k.color},transparent 60%)` }} />
-                  <EdgeGlow />
-                  <div className="relative z-10">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                        style={{ background:`${k.color}1a`,border:`1px solid ${k.color}35` }}>
-                        <k.icon className="w-4 h-4" style={{ color:k.color }} />
-                      </div>
-                      {k.trend != null && (
-                        <span className={`flex items-center gap-0.5 text-xs font-semibold ${k.trend >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                          {k.trend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                          {k.trend >= 0 ? "+" : ""}{k.trend.toFixed(0)}%
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-2xl xl:text-3xl font-bold tracking-tight" style={{ color:k.color }}>{k.value}</p>
-                    <p className="text-sm font-semibold text-gray-700 dark:text-[#EDEDEF] mt-1">{k.label}</p>
-                    <p className="text-xs text-gray-400 dark:text-[#8A8F98] mt-0.5 truncate">{k.sub}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+  {kpis.map((k, i) => (
+    <KpiSpotlightCard
+      key={k.label}
+      item={k}
+      index={i}
+      dimmed={hoveredKpi !== null && hoveredKpi !== k.label}
+      onHoverStart={() => setHoveredKpi(k.label)}
+      onHoverEnd={() => setHoveredKpi(null)}
+    />
+  ))}
+</div>
 
             {/* ── Row 2: BENTO — Score chart (wide) + Radar + Section mini ── */}
             {/* 
@@ -411,7 +388,7 @@ export default function Dashboard() {
                 <motion.button whileHover={{ scale:1.02,y:-1 }} whileTap={{ scale:0.98 }}
                   transition={{ duration:0.2,ease:[0.16,1,0.3,1] }}
                   onClick={() => navigate("/assessment/new")}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl bg-[#5E6AD2] text-white hover:bg-[#6872D9] transition-all duration-200 shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_3px_10px_rgba(94,106,210,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]">
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl bg-[#5E6AD2] text-white hover:bg-[#6872D9] transition-all duration-200 shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_3px_10px_rgba(94,106,210,0.3),inset_0_1px_0_rgba(255,255,255,0.15)] cursor-pointer">
                   <Plus className="w-3.5 h-3.5"/>
                   New
                 </motion.button>
@@ -442,7 +419,7 @@ export default function Dashboard() {
                   <p className="text-sm text-gray-400 dark:text-[#8A8F98] mt-0.5">Your latest test scores</p>
                 </div>
                 <button onClick={() => navigate("/results")}
-                  className="text-sm text-[#5E6AD2] hover:text-[#6872D9] transition-colors flex items-center gap-0.5 font-medium">
+                  className="text-sm text-[#5E6AD2] hover:text-[#6872D9] transition-colors flex items-center gap-0.5 font-medium cursor-pointer">
                   View all <ArrowRight className="w-3.5 h-3.5 ml-0.5"/>
                 </button>
               </div>

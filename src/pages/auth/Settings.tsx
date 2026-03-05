@@ -157,7 +157,7 @@ export default function SettingsPage() {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
           <button onClick={() => navigate("/dashboard")}
-            className="inline-flex items-center gap-2 text-sm text-gray-400 dark:text-[#8A8F98] hover:text-gray-700 dark:hover:text-[#EDEDEF] transition-colors mb-3 group">
+            className="inline-flex items-center gap-2 text-sm text-gray-400 dark:text-[#8A8F98] hover:text-gray-700 dark:hover:text-[#EDEDEF] transition-colors mb-3 group cursor-pointer">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform duration-200" />
             Back to Dashboard
           </button>
@@ -234,7 +234,7 @@ export default function SettingsPage() {
                           className={(kErr.groqKey ? INPUT_ERR : INPUT_OK) + " pr-11 font-mono"}
                         />
                         <button type="button" onClick={() => setShowKey(s => !s)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8A8F98] hover:text-gray-700 dark:hover:text-[#EDEDEF] transition-colors">
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8A8F98] hover:text-gray-700 dark:hover:text-[#EDEDEF] transition-colors cursor-pointer">
                           {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
@@ -242,7 +242,7 @@ export default function SettingsPage() {
                     </div>
                     <motion.button whileHover={{ scale: 1.01, y: -1 }} whileTap={{ scale: 0.98 }}
                       type="submit" disabled={saveKey.isPending || kBusy}
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-[#5E6AD2] text-white hover:bg-[#6872D9] transition-all duration-200 disabled:opacity-60 shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_14px_rgba(94,106,210,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]">
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-[#5E6AD2] text-white hover:bg-[#6872D9] transition-all duration-200 disabled:opacity-60 shadow-[0_0_0_1px_rgba(94,106,210,0.5),0_4px_14px_rgba(94,106,210,0.3),inset_0_1px_0_rgba(255,255,255,0.15)] cursor-pointer">
                       {(saveKey.isPending || kBusy) ? <Spinner className="w-4 h-4" /> : <Key className="w-4 h-4" />}
                       Save API Key
                     </motion.button>

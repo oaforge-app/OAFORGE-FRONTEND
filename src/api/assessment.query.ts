@@ -15,6 +15,7 @@ import type {
   Answer,
   SubmitResponse,
 } from "@/types";
+import { useNavigate } from "react-router-dom";
 
 // ── Raw handlers ──────────────────────────────────────────────────────────────
 
@@ -209,6 +210,8 @@ export const useRemoveSection = (assessmentId: string) => {
 
 export const useFinalizeAssessment = (assessmentId: string) => {
   const qc = useQueryClient();
+  const navigate = useNavigate();
+
   return useMutation({
     mutationFn: (data: FinalizePayload) =>
       finalizeAssessmentHandler({ assessmentId, data }),
@@ -216,10 +219,24 @@ export const useFinalizeAssessment = (assessmentId: string) => {
       qc.invalidateQueries({ queryKey: QUERY_KEY.assessment(assessmentId) });
       qc.invalidateQueries({ queryKey: QUERY_KEY.my_assessments });
     },
-    onError: (e: any) =>
-      toast.error(
-        e?.response?.data?.message ?? "Failed to generate questions. Try again."
-      ),
+    onError: (e: any) => {
+      const status  = e?.response?.status;
+      const message = e?.response?.data?.message;
+
+      if (status === 429) {
+        toast.error("Daily limit reached", {
+          description: message ?? "3 assessments/day without a Groq key.",
+          action: {
+            label: "Add Groq Key →",
+            onClick: () => navigate("/settings"),
+          },
+          duration: 10_000,
+        });
+        return;
+      }
+
+      toast.error(message ?? "Failed to generate questions. Try again.");
+    },
   });
 };
 
