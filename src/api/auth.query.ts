@@ -59,7 +59,6 @@ export const useUser = (enabled = true) => {
     refetchOnMount: false,
     refetchOnReconnect: false,
   });
-  console.log(user);
 
   return {
     user: user ?? null,
