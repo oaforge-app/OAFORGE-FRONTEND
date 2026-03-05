@@ -97,23 +97,20 @@ export default function CreateAssessmentPage() {
   const company = watch("company") ?? "";
 
   const onSubmit = (data: FormData) => {
-    if (!user.hasGroqApiKey) {
-      toast.error("Groq API key required", {
-        description: "Add your key in Settings before creating an assessment.",
-        action: { label: "Go to Settings", onClick: () => navigate("/settings") },
-        duration: 6000,
-      });
-      return;
-    }
-    createAssessment.mutate(
-      { role: data.role, company: data.company || undefined, jdText: data.jdText || undefined },
-      {
-        onSuccess: (res) => navigate(`/assessment/${res.assessment.id}/plan`, {
+  createAssessment.mutate(
+    {
+      role: data.role,
+      company: data.company || undefined,
+      jdText: data.jdText || undefined,
+    },
+    {
+      onSuccess: (res) =>
+        navigate(`/assessment/${res.assessment.id}/plan`, {
           state: { reasoning: res.reasoning },
         }),
-      }
-    );
-  };
+    }
+  );
+};
 
   const busy = createAssessment.isPending || isSubmitting;
 
@@ -178,26 +175,36 @@ export default function CreateAssessmentPage() {
 
             {/* No API key warning */}
             <AnimatePresence>
-              {!user.hasGroqApiKey && (
-                <motion.div initial={{ opacity: 0, y: -8, height: 0 }} animate={{ opacity: 1, y: 0, height: "auto" }}
-                  exit={{ opacity: 0, y: -8, height: 0 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                  className="overflow-hidden">
-                  <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-500/[0.07] dark:border-amber-500/[0.22]">
-                    <div className="flex items-center gap-3">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                      <p className="text-sm text-amber-700 dark:text-amber-400">
-                        You need a <strong>Groq API key</strong> to generate AI questions.
-                      </p>
-                    </div>
-                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                      type="button" onClick={() => navigate("/settings")}
-                      className="shrink-0 text-xs px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold transition-colors shadow-[0_2px_8px_rgba(245,158,11,0.3)]">
-                      Add in Settings →
-                    </motion.button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+  {!user.hasGroqApiKey && (
+    <motion.div
+      initial={{ opacity: 0, y: -8, height: 0 }}
+      animate={{ opacity: 1, y: 0, height: "auto" }}
+      exit={{ opacity: 0, y: -8, height: 0 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      className="overflow-hidden"
+    >
+      <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 dark:bg-blue-500/[0.07] dark:border-blue-500/[0.22]">
+        <div className="flex items-center gap-3">
+          <AlertCircle className="w-4 h-4 text-blue-500 shrink-0" />
+          <p className="text-sm text-blue-700 dark:text-blue-400">
+            Using platform Groq key —{" "}
+            <strong>3 assessments/day</strong> limit.{" "}
+            <span className="opacity-75">Add your own key for unlimited access.</span>
+          </p>
+        </div>
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          type="button"
+          onClick={() => navigate("/settings")}
+          className="shrink-0 text-xs px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors shadow-[0_2px_8px_rgba(59,130,246,0.3)]"
+        >
+          Add Key →
+        </motion.button>
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
 
             {/* Form card */}
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}

@@ -102,7 +102,7 @@ export default function ResultsPage() {
           className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <button onClick={() => navigate("/dashboard")}
-              className="inline-flex items-center gap-2 text-sm text-gray-400 dark:text-[#8A8F98] hover:text-gray-700 dark:hover:text-[#EDEDEF] transition-colors mb-2 group">
+              className="inline-flex items-center gap-2 text-sm text-gray-400 dark:text-[#8A8F98] hover:text-gray-700 dark:hover:text-[#EDEDEF] transition-colors mb-2 group cursor-pointer">
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform duration-200" />
               Back to Dashboard
             </button>
