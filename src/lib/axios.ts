@@ -11,7 +11,6 @@ export const axiosServices = axios.create({
 
 
 let isRefreshing = false;
-// ✅ ADD: queue for requests that arrive while refresh is in-flight
 let failedQueue: { resolve: (v: any) => void; reject: (e: any) => void }[] = [];
 
 const processQueue = (error: any) => {
@@ -24,6 +23,12 @@ axiosServices.interceptors.response.use(
   async (error) => {
     const original = error.config;
 
+    // ← Skip interceptor entirely for flagged requests (e.g. AuthGate /auth/me check)
+    // These handle their own 401 and should never trigger a redirect
+    if (original?._skipInterceptor) {
+      return Promise.reject(error);
+    }
+
     const is401 = error.response?.status === 401;
     const isRefreshEndpoint = original?.url?.includes("/auth/refresh-token");
     const isAuthEndpoint =
@@ -32,7 +37,6 @@ axiosServices.interceptors.response.use(
       original?.url?.includes("/auth/logout");
 
     if (is401 && !original._retry && !isRefreshEndpoint && !isAuthEndpoint) {
-      // ✅ CHANGE: queue instead of reject when refresh already in-flight
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -50,7 +54,6 @@ axiosServices.interceptors.response.use(
         return axiosServices(original);
       } catch (refreshError) {
         processQueue(refreshError);
-        // ✅ ADD: redirect on refresh failure (revoked/expired token)
         window.location.href = "/login";
         return Promise.reject(refreshError);
       } finally {
