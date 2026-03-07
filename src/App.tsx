@@ -1,52 +1,47 @@
-// src/App.tsx
-
 import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 import { Toaster } from "@/components/ui/sonner";
 import ProtectedRoute from "@/utility/ProtectedRoutes";
-import { logoutApiHandler, refreshTokenApiHandler } from "@/api/auth.query";
 
-import LoginPage           from "@/pages/auth/Login";
-import RegisterPage        from "@/pages/auth/Register";
-import AuthCallback        from "@/pages/AuthCallback";
-import Dashboard           from "@/pages/Dashboard";
+import LoginPage            from "@/pages/auth/Login";
+import RegisterPage         from "@/pages/auth/Register";
+import AuthCallback         from "@/pages/AuthCallback";
+import Dashboard            from "@/pages/Dashboard";
 import CreateAssessmentPage from "@/pages/assessments/CreateAssessment";
-import AssessmentPlanPage  from "@/pages/assessments/AssessmentPlan";
-import TestScreenPage from "./pages/test/TestScreen";
-import ResultDetailPage    from "@/pages/results/ResultDetail";
-import SettingsPage from "./pages/auth/Settings";
-import AuthGate from "./utility/AuthGate";
-import ResultsPage from "./pages/results/Results";
-import { ThemeProvider } from "next-themes";
-import NotFoundPage from "./pages/NotFound";
-import ForgotPasswordForm from "./pages/auth/ForgotPass";
-import LandingPage from "./pages/LandingPage";
+import AssessmentPlanPage   from "@/pages/assessments/AssessmentPlan";
+import TestScreenPage       from "./pages/test/TestScreen";
+import ResultDetailPage     from "@/pages/results/ResultDetail";
+import SettingsPage         from "./pages/auth/Settings";
+import AuthGate             from "./utility/AuthGate";
+import ResultsPage          from "./pages/results/Results";
+import { ThemeProvider }    from "next-themes";
+import NotFoundPage         from "./pages/NotFound";
+import ForgotPasswordForm   from "./pages/auth/ForgotPass";
+import LandingPage          from "./pages/LandingPage";
+import { useSessionRevoked } from "./lib/useSessionRevoked";
 
 // ── Root layout ───────────────────────────────────────────────────────────────
-
-const RootLayout = () => (
-  <>
-    <Outlet />
-    <Toaster />
-  </>
-);
-
-// ── Router ────────────────────────────────────────────────────────────────────
+// ✅ Changed from arrow function to proper component so hooks work
+const RootLayout = () => {
+  useSessionRevoked(); // polls /auth/me every 30s — kicks out revoked sessions
+  return (
+    <>
+      <Outlet />
+      <Toaster />
+    </>
+  );
+};
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <RootLayout />,
     children: [
-       {
-        path: "",
-        element: <AuthGate/>,
-      },
-     
+      { path: "", element: <AuthGate /> },
 
-      // ── Public routes (logged-OUT only) ──────────────────────────────────
+      // ── Public routes ─────────────────────────────────────────────────────
       {
         path: "login",
         element: (
@@ -64,19 +59,16 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path:"forgot-password",
-        element:(
+        path: "forgot-password",
+        element: (
           <ProtectedRoute allowAuthenticated={false} redirectTo="/dashboard">
-            <ForgotPasswordForm/>
+            <ForgotPasswordForm />
           </ProtectedRoute>
-        )
+        ),
       },
-      {
-        path: "auth/callback",
-        element: <AuthCallback />,
-      },
+      { path: "auth/callback", element: <AuthCallback /> },
 
-      // ── Protected routes (logged-IN only) ────────────────────────────────
+      // ── Protected routes ──────────────────────────────────────────────────
       {
         element: (
           <ProtectedRoute allowAuthenticated={true} redirectTo="/login">
@@ -84,70 +76,39 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
         children: [
-          { path: "dashboard",                       element: <Dashboard />            },
-          { path: "settings",                        element: <SettingsPage />         },
-
-          // Assessment flow
-          { path: "assessment/new",                  element: <CreateAssessmentPage /> },
-          { path: "assessment/:id/plan",             element: <AssessmentPlanPage />   },
-          { path: "assessment/:id/test",             element: <TestScreenPage />        },
-
-           // Results
-          { path: "results",                         element: <ResultsPage />          },
-          { path: "results/:resultId",               element: <ResultDetailPage />     },
+          { path: "dashboard",           element: <Dashboard />            },
+          { path: "settings",            element: <SettingsPage />         },
+          { path: "assessment/new",      element: <CreateAssessmentPage /> },
+          { path: "assessment/:id/plan", element: <AssessmentPlanPage />   },
+          { path: "assessment/:id/test", element: <TestScreenPage />       },
+          { path: "results",             element: <ResultsPage />          },
+          { path: "results/:resultId",   element: <ResultDetailPage />     },
         ],
       },
 
-      // ── 404 ──────────────────────────────────────────────────────────────
-      {
-        path: "*",
-        element: <NotFoundPage/>
-      },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ]);
 
-// ── AppWrapper ────────────────────────────────────────────────────────────────
-
-const AppWrapper = () => {
-    const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry(failureCount, error) {
-          if ((error as any).status === 401) {
-            try {
-              refreshTokenApiHandler();
-            } catch {
-              logoutApiHandler();
-            }
-          }
-          return true;
-        },
-      },
-      mutations: {
-        onError: async (error: any) => {
-          if (error?.status === 401) {
-            try {
-              refreshTokenApiHandler();
-            } catch {
-              logoutApiHandler();
-            }
-          }
-        },
-      },
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      staleTime: 1000 * 60 * 5,
     },
-  });
+  },
+});
 
-  return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+const AppWrapper = () => (
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
       {import.meta.env.DEV && (
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
       )}
     </QueryClientProvider>
-    </ThemeProvider>
-  );
-};
+  </ThemeProvider>
+);
 
 export default AppWrapper;
