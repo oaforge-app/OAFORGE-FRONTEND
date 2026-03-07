@@ -14,6 +14,7 @@ import { useUser } from "@/api/auth.query";
 import { useProfile, useSaveGroqKey, useRemoveGroqKey, useUpdateProfile } from "@/api/user.query";
 import { Spinner } from "@/components/ui/spinner";
 import Navbar from "../components/Navbar";
+import SessionsCard from "./SessionsCard";
 
 const profileSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -31,10 +32,6 @@ const groqKeySchema = z.object({
     .refine((v) => v.startsWith("gsk_"), { message: 'Key must start with "gsk_"' }),
 });
 type GroqKeyForm = z.infer<typeof groqKeySchema>;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Design tokens
-// ─────────────────────────────────────────────────────────────────────────────
 
 const CARD =
   "relative overflow-hidden rounded-2xl " +
@@ -63,10 +60,6 @@ function FieldError({ msg }: { msg?: string }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user } = useUser();
@@ -79,7 +72,6 @@ export default function SettingsPage() {
   const [showKey, setShowKey] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
-  // ── Profile form ───────────────────────────────────────────────────────────
   const {
     register: pReg,
     handleSubmit: pSubmit,
@@ -90,7 +82,6 @@ export default function SettingsPage() {
     defaultValues: { firstName: "", lastName: "", college: "", branch: "" },
   });
 
-  // Pre-fill once profile loads from server; keeps dirty state clean
   useEffect(() => {
     if (!profile) return;
     pReset({
@@ -106,13 +97,11 @@ export default function SettingsPage() {
       onSuccess: () => {
         setProfileSaved(true);
         setTimeout(() => setProfileSaved(false), 2500);
-        // Reset to new values → isDirty becomes false again
         pReset(data);
       },
     });
   };
 
-  // ── Groq key form ──────────────────────────────────────────────────────────
   const {
     register: kReg,
     handleSubmit: kSubmit,
@@ -132,7 +121,7 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-[#f4f4f7] dark:bg-[#050506] transition-colors duration-300">
 
-      {/* ── Atmospheric background ── */}
+      {/* Atmospheric background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="dark:hidden absolute inset-0 bg-[radial-gradient(ellipse_100%_40%_at_50%_0%,rgba(99,102,241,0.09),transparent_70%)]" />
         <div className="hidden dark:block absolute inset-0 bg-[#050506]" />
@@ -167,12 +156,10 @@ export default function SettingsPage() {
           </p>
         </motion.div>
 
-        {/* ════════════════════════════════════════════════════════════════════
-            Bento grid: left col (API key + Account) | right col (Profile)
-        ════════════════════════════════════════════════════════════════════ */}
+        {/* Bento grid: left col (API key + Account) | right col (Profile) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
 
-          {/* ── LEFT: API Key + Account (5/12) ── */}
+          {/* LEFT: API Key + Account (5/12) */}
           <div className="xl:col-span-5 space-y-4">
 
             {/* Groq API Key card */}
@@ -182,7 +169,6 @@ export default function SettingsPage() {
               <div className="absolute inset-0 opacity-[0.06] dark:opacity-[0.08] pointer-events-none"
                 style={{ background: "radial-gradient(circle at 85% 15%,#5E6AD2,transparent 60%)" }} />
               <EdgeGlow />
-
               <div className="relative z-10">
                 <div className="flex items-center gap-2.5 mb-1">
                   <div className="w-8 h-8 rounded-xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 flex items-center justify-center">
@@ -197,13 +183,11 @@ export default function SettingsPage() {
                     Get free key <ExternalLink className="w-3 h-3" />
                   </a>
                 </p>
-
                 {isLoading ? (
                   <div className="flex items-center gap-2 ml-[42px]">
                     <Spinner className="w-4 h-4 text-[#5E6AD2]" />
                     <span className="text-sm text-gray-400 dark:text-[#8A8F98]">Loading…</span>
                   </div>
-
                 ) : hasGroqKey ? (
                   <div className="ml-[42px] space-y-3">
                     <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 dark:bg-emerald-500/[0.07] dark:border-emerald-500/[0.20]">
@@ -221,7 +205,6 @@ export default function SettingsPage() {
                       Remove API key
                     </motion.button>
                   </div>
-
                 ) : (
                   <form onSubmit={kSubmit(onSaveKey)} noValidate className="ml-[42px] space-y-3">
                     <div>
@@ -284,21 +267,18 @@ export default function SettingsPage() {
             </motion.div>
           </div>
 
-          {/* ── RIGHT: Profile form (7/12) ── */}
+          {/* RIGHT: Profile form (7/12) */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.12, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className={CARD + " xl:col-span-7 p-6"}>
             <EdgeGlow />
             <div className="relative z-10">
-
-              {/* Card header */}
               <div className="flex items-center gap-2.5 mb-5">
                 <div className="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
                   <User className="w-4 h-4 text-indigo-500" />
                 </div>
                 <h2 className="text-base font-semibold text-gray-900 dark:text-[#EDEDEF]">Profile</h2>
               </div>
-
               {isLoading ? (
                 <div className="flex items-center gap-2 py-6">
                   <Spinner className="w-4 h-4 text-[#5E6AD2]" />
@@ -306,8 +286,6 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <form onSubmit={pSubmit(onSaveProfile)} noValidate className="space-y-5">
-
-                  {/* Avatar row */}
                   <div className="flex items-center gap-4 pb-1">
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white bg-gradient-to-br from-[#5E6AD2] to-[#7c3aed] shadow-[0_4px_14px_rgba(94,106,210,0.35)] shrink-0">
                       {profile?.firstName?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "U"}
@@ -323,10 +301,7 @@ export default function SettingsPage() {
                       </p>
                     </div>
                   </div>
-
                   <div className="h-px bg-gray-100 dark:bg-white/[0.06]" />
-
-                  {/* First + Last name */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-gray-500 dark:text-[#8A8F98] uppercase tracking-wide">
@@ -343,24 +318,18 @@ export default function SettingsPage() {
                       <input {...pReg("lastName")} placeholder="Last name" className={INPUT_OK} />
                     </div>
                   </div>
-
-                  {/* College */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-500 dark:text-[#8A8F98] uppercase tracking-wide flex items-center gap-1.5">
                       <GraduationCap className="w-3.5 h-3.5" /> College
                     </label>
                     <input {...pReg("college")} placeholder="e.g. IIT Bombay, VIT..." className={INPUT_OK} />
                   </div>
-
-                  {/* Branch */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-500 dark:text-[#8A8F98] uppercase tracking-wide flex items-center gap-1.5">
                       <BookOpen className="w-3.5 h-3.5" /> Branch
                     </label>
                     <input {...pReg("branch")} placeholder="e.g. Computer Science & Engineering" className={INPUT_OK} />
                   </div>
-
-                  {/* Unsaved changes banner */}
                   <AnimatePresence>
                     {pDirty && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
@@ -373,8 +342,6 @@ export default function SettingsPage() {
                       </motion.div>
                     )}
                   </AnimatePresence>
-
-                  {/* Save / Discard / Saved row */}
                   <div className="flex items-center gap-3 pt-1">
                     <motion.button type="submit"
                       disabled={!pDirty || updateProfile.isPending || pBusy}
@@ -390,8 +357,6 @@ export default function SettingsPage() {
                         ? <><Spinner className="w-4 h-4" /> Saving…</>
                         : "Save Profile"}
                     </motion.button>
-
-                    {/* Discard — only visible when dirty */}
                     <AnimatePresence>
                       {pDirty && (
                         <motion.button type="button"
@@ -403,8 +368,6 @@ export default function SettingsPage() {
                         </motion.button>
                       )}
                     </AnimatePresence>
-
-                    {/* Saved confirmation */}
                     <AnimatePresence>
                       {profileSaved && (
                         <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
@@ -420,6 +383,12 @@ export default function SettingsPage() {
             </div>
           </motion.div>
         </div>
+
+        {/* ── Active Sessions — full width below the bento grid ── */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.22, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}>
+          <SessionsCard />
+        </motion.div>
 
         <div className="h-10" />
       </main>
