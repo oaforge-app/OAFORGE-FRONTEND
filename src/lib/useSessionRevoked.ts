@@ -1,25 +1,28 @@
 // src/hooks/useSessionRevoked.ts
-// Add this hook to your root layout or App component.
-// It polls /auth/me every 30s — if it gets a 401 that the interceptor
-// can't recover from (refresh token gone), the interceptor already
-// redirects to /login. This hook handles the edge case where the user
-// is idle (no requests firing) when their session is revoked.
-
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { axiosServices } from "@/lib/axios";
+import { useUser } from "@/api/auth.query";
 
 export function useSessionRevoked() {
+  const { user, loading } = useUser();
+  const redirecting = useRef(false);
+
   useEffect(() => {
-    // Poll silently every 30 seconds
+    // Don't poll if not logged in or still loading
+    if (loading || !user) return;
+
+    const PUBLIC_PATHS = ["/login", "/register", "/forgot-password"];
+    if (PUBLIC_PATHS.some(p => window.location.pathname.startsWith(p))) return;
+
     const interval = setInterval(async () => {
+      if (redirecting.current) return;
       try {
         await axiosServices.get("/auth/me");
       } catch {
-        // If /me fails AND refresh fails, axios interceptor handles redirect.
-        // Nothing to do here — the interceptor does window.location.href = "/login"
+        redirecting.current = true;
       }
     }, 30_000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [user, loading]); // re-runs when auth state changes
 }
