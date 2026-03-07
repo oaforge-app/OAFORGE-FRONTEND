@@ -1,73 +1,311 @@
-# React + TypeScript + Vite
+# OAForge Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> React + Vite SPA — AI-powered Online Assessment practice platform.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Tech Stack
 
-## React Compiler
+| Layer | Technology |
+|---|---|
+| Framework | React 18 + Vite |
+| Language | TypeScript |
+| Routing | React Router v6 |
+| State / Data | TanStack Query v5 |
+| HTTP | Axios (with interceptor) |
+| Styling | Tailwind CSS |
+| UI Primitives | shadcn/ui + Radix |
+| Animations | Framer Motion |
+| Forms | React Hook Form + Zod |
+| Notifications | Sonner (toast) |
+| Theme | next-themes (dark/light) |
+| Deployment | Vercel |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Architecture
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        React App                            │
+│                                                             │
+│  ┌─────────────┐   ┌──────────────┐   ┌─────────────────┐  │
+│  │   Router    │   │ QueryClient  │   │  ThemeProvider  │  │
+│  │(createBrowser│  │(TanStack)    │   │  (next-themes)  │  │
+│  │   Router)   │   └──────┬───────┘   └─────────────────┘  │
+│  └──────┬──────┘          │                                 │
+│         │           ┌─────▼──────┐                         │
+│         │           │   Axios    │                         │
+│         │           │Interceptor │                         │
+│         │           │(401→refresh│                         │
+│         │           │ →queue)    │                         │
+│         │           └─────┬──────┘                         │
+│         │                 │                                 │
+│  ┌──────▼─────────────────▼──────────────────────────────┐  │
+│  │                    Pages                               │  │
+│  │  Landing │ Login │ Register │ Dashboard │ Settings ... │  │
+│  └──────────────────────────┬──────────────────────────────┘  │
+│                             │                               │
+│  ┌──────────────────────────▼──────────────────────────────┐  │
+│  │               API Query Hooks (TanStack)                │  │
+│  │  useUser │ useProfile │ useGetSessions │ useAssessment  │  │
+│  └─────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Auth Flow (Frontend)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+App loads
+    │
+    ▼
+AuthGate ( / )
+    │
+    ├── has valid access_token? ──▶ /dashboard
+    │
+    └── no token / 401
+            │
+            ▼
+        /login page
+            │
+        POST /auth/login
+            │
+            ├── success ──▶ navigate("/dashboard")
+            │
+            └── 401 ──▶ show error
+
+Token Expiry Handling (axios interceptor):
+    Any request → 401
+        │
+        ├── isRefreshing? ──▶ queue request, wait
+        │
+        └── not refreshing
+                │
+            GET /auth/refresh-token
+                │
+                ├── success ──▶ retry all queued requests
+                │
+                └── fail ──▶ window.location.href = "/login"
+                             (only if not already on public page)
+
+Session Revoke Detection (useSessionRevoked hook):
+    Polls GET /auth/me every 30s
+        │
+        └── 401 ──▶ interceptor tries refresh ──▶ fails ──▶ /login
+```
+
+---
+
+## Project Structure
+
+```
+src/
+├── api/                        # TanStack Query hooks
+│   ├── auth.query.ts           # useUser, useLogin, useLogout
+│   ├── user.query.ts           # useProfile, useSaveGroqKey, useUpdateProfile
+│   ├── sessions.query.ts       # useGetSessions, useRevokeSession
+│   ├── assessment.query.ts     # useCreateAssessment, useGetAssessment
+│   └── results.query.ts        # useSubmitResult, useGetResults
+│
+├── components/
+│   ├── ui/                     # shadcn/ui primitives
+│   ├── settings/
+│   │   └── SessionsCard.tsx    # Active sessions management
+│   └── Navbar.tsx
+│
+├── hooks/
+│   └── useSessionRevoked.ts    # Polls /auth/me, detects revoked sessions
+│
+├── lib/
+│   └── axios.ts                # Axios instance + 401 interceptor + queue
+│
+├── pages/
+│   ├── LandingPage.tsx
+│   ├── auth/
+│   │   ├── Login.tsx
+│   │   ├── Register.tsx        # 2-step: form → OTP → account
+│   │   ├── ForgotPass.tsx
+│   │   └── Settings.tsx        # Profile, API key, active sessions
+│   ├── assessments/
+│   │   ├── CreateAssessment.tsx
+│   │   └── AssessmentPlan.tsx
+│   ├── test/
+│   │   └── TestScreen.tsx
+│   ├── results/
+│   │   ├── Results.tsx
+│   │   └── ResultDetail.tsx
+│   ├── Dashboard.tsx
+│   ├── AuthCallback.tsx        # Google OAuth redirect handler
+│   └── NotFound.tsx
+│
+├── utility/
+│   ├── ProtectedRoute.tsx      # Auth-aware route wrapper
+│   └── AuthGate.tsx            # / root redirect logic
+│
+├── types/
+└── App.tsx                     # Router + QueryClient + ThemeProvider
+```
+
+---
+
+## Route Structure
+
+```
+/                           AuthGate (redirects based on auth state)
+├── login                   Public (redirects to /dashboard if authed)
+├── register                Public
+├── forgot-password         Public
+├── auth/callback           Google OAuth callback
+│
+└── [Protected]
+    ├── dashboard
+    ├── settings
+    ├── assessment/new
+    ├── assessment/:id/plan
+    ├── assessment/:id/test
+    ├── results
+    └── results/:resultId
+```
+
+---
+
+## Key Components
+
+### `axios.ts` — Interceptor
+```
+Every response →
+  401? → already retried? → reject
+       → isRefreshing? → push to failedQueue
+       → try GET /auth/refresh-token
+           success → processQueue → retry original
+           fail    → processQueue(error) → redirect /login
+                     (skips redirect if already on public page)
+```
+
+### `useSessionRevoked` hook
+```
+Mounts on RootLayout (every authenticated page)
+  → skip if on /login, /register, /forgot-password
+  → setInterval 30s
+      → GET /auth/me
+          → 401 → interceptor → refresh fails → /login
+```
+
+### `SessionsCard.tsx`
+```
+GET /auth/sessions
+  → renders each RefreshToken row
+  → isCurrent matched by tokenHash of current refresh cookie (backend)
+  → current session: green badge, no sign-out button
+  → other sessions: "Sign out" → DELETE /auth/sessions/:id
+      → backend deletes RT + blocklists specific jti
+      → invalidates sessions query → card refreshes
+```
+
+### `ProtectedRoute.tsx`
+```
+allowAuthenticated=false  →  redirects authed users away (login/register)
+allowAuthenticated=true   →  redirects unauthed users to /login
+```
+
+---
+
+## Settings Page Layout
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Settings                                               │
+│                                                         │
+│  ┌───────────────────┐  ┌──────────────────────────────┐│
+│  │  Groq API Key     │  │                              ││
+│  │  (5/12)           │  │  Profile                     ││
+│  ├───────────────────┤  │  (7/12)                      ││
+│  │  Account          │  │  firstName, lastName,        ││
+│  │  email, provider  │  │  college, branch             ││
+│  └───────────────────┘  └──────────────────────────────┘│
+│                                                         │
+│  ┌─────────────────────────────────────────────────────┐│
+│  │  Active Sessions  (full width)                      ││
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐          ││
+│  │  │ Chrome   │  │ Safari   │  │ Firefox  │          ││
+│  │  │ Desktop  │  │ Mobile   │  │ Desktop  │          ││
+│  │  │ Current  │  │ Sign out │  │ Sign out │          ││
+│  │  └──────────┘  └──────────┘  └──────────┘          ││
+│  └─────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Environment Variables
+
+```env
+VITE_BACKEND_URL=https://your-app.railway.app
+```
+
+---
+
+## Setup & Development
+
+```bash
+# Install
+npm install
+
+# Development
+npm run dev
+
+# Build
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+---
+
+## Design System
+
+All pages share a consistent dark forge theme:
+
+| Token | Value | Usage |
+|---|---|---|
+| Background | `#050506` | Page background (dark) |
+| Card | `#0d0d10` | Card surfaces |
+| Accent | `#5E6AD2` | Primary actions, focus rings |
+| Accent Light | `#818CF8` | Labels, highlights |
+| Text Primary | `#EDEDEF` | Headings, values |
+| Text Secondary | `#8A8F98` | Labels, descriptions |
+| Green | `#34D399` | Success, correct answers |
+| Red | `#F87171` | Errors, wrong answers |
+| Amber | `#FBBF24` | Warnings, alerts |
+
+Cards follow a consistent pattern:
+- `rounded-2xl` border radius
+- `border border-white/[0.07]` subtle border
+- Top edge glow via `h-px bg-gradient-to-r`
+- Radial accent tint at corner
+
+---
+
+## Registration Flow
+
+```
+Step 1: Fill form (email, name, password)
+    │
+    ▼
+POST /auth/send-register-otp
+    │
+    ▼
+Step 2: Enter OTP from email
+    │
+    ▼
+POST /auth/verify-register-otp
+    │
+    ▼
+POST /auth/register  (creates account, sets cookies)
+    │
+    ▼
+navigate("/dashboard")
 ```
