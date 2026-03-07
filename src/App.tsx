@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "@/components/ui/sonner";
 import ProtectedRoute from "@/utility/ProtectedRoutes";
 
+
 import LoginPage            from "@/pages/auth/Login";
 import RegisterPage         from "@/pages/auth/Register";
 import AuthCallback         from "@/pages/AuthCallback";
@@ -22,16 +23,20 @@ import ForgotPasswordForm   from "./pages/auth/ForgotPass";
 import LandingPage          from "./pages/LandingPage";
 import { useSessionRevoked } from "./lib/useSessionRevoked";
 
-// ── Root layout ───────────────────────────────────────────────────────────────
-// ✅ Changed from arrow function to proper component so hooks work
-const RootLayout = () => {
-  useSessionRevoked(); // polls /auth/me every 30s — kicks out revoked sessions
-  return (
-    <>
-      <Outlet />
-      <Toaster />
-    </>
-  );
+// ── Root layout — no auth logic here ─────────────────────────────────────────
+const RootLayout = () => (
+  <>
+    <Outlet />
+    <Toaster />
+  </>
+);
+
+// ── Protected layout — only mounts when user is authenticated ─────────────────
+// useSessionRevoked is safe here because ProtectedRoute already confirmed
+// the user is logged in before this component ever renders
+const ProtectedLayout = () => {
+  useSessionRevoked();
+  return <Outlet />;
 };
 
 const router = createBrowserRouter([
@@ -72,7 +77,7 @@ const router = createBrowserRouter([
       {
         element: (
           <ProtectedRoute allowAuthenticated={true} redirectTo="/login">
-            <Outlet />
+            <ProtectedLayout />
           </ProtectedRoute>
         ),
         children: [

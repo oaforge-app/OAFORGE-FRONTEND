@@ -19,7 +19,9 @@ export interface RegisterPayload {
 
 export const getMeHandler = async (): Promise<User | null> => {
   try {
-    const res = await axiosServices.get<any>("/auth/me");
+    const res = await axiosServices.get<any>("/auth/me", {
+      _skipInterceptor: true,
+    } as any);
     return res.data.data;
   } catch (err: any) {
     if (err.response?.status === 401) return null;
