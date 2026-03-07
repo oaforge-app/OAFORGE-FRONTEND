@@ -12,6 +12,7 @@ export interface Session {
   device:     string | null;
   createdAt:  string;
   lastUsedAt: string | null;
+  isCurrent:  boolean;         // ← new
 }
 
 const SESSIONS_KEY = ["sessions"];
